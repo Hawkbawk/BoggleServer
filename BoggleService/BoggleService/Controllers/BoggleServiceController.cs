@@ -1,5 +1,4 @@
-﻿using Boggle;
-using BoggleService.Models;
+﻿using BoggleService.Models;
 using System;
 using System.Collections.Generic;
 using System.Net;
@@ -78,7 +77,7 @@ namespace BoggleService.Controllers
         /// game's game ID(which should be the same as the old pending game's game ID). Responds with
         /// status 200 (Ok).
         ///
-        /// </summary> <param name="join">A request that contains the user token and the user's desired time limit</param>
+        /// </summary> <param name="join"></param>
         [Route("BoggleService/games")]
         public JoinGameResponse PostJoinGame([FromBody]JoinGameRequest join)
         {

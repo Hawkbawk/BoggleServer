@@ -167,7 +167,6 @@
     <Compile Include="Global.asax.cs">
       <DependentUpon>Global.asax</DependentUpon>
     </Compile>
-    <Compile Include="Models\BoggleBoard.cs" />
     <Compile Include="Models\Game.cs" />
     <Compile Include="Models\JoinGameRequest.cs" />
     <Compile Include="Models\JoinGameResponse.cs" />
@@ -185,7 +184,6 @@
     <Content Include="favicon.ico" />
     <Content Include="fonts\glyphicons-halflings-regular.svg" />
     <Content Include="Global.asax" />
-    <Content Include="Models\dictionary.txt" />
     <Content Include="Scripts\bootstrap.js" />
     <Content Include="Scripts\bootstrap.min.js" />
     <Content Include="Areas\HelpPage\Views\Web.config" />
