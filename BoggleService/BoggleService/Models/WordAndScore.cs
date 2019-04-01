@@ -5,6 +5,7 @@ namespace BoggleService.Models
     /// <summary>
     /// 
     /// </summary>
+    [DataContract]
     public class WordAndScore
     {
         /// <summary>

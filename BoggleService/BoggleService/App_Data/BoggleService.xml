@@ -514,7 +514,7 @@
             
              </summary> <param name="join">A request that contains the user token and the user's desired time limit</param>
         </member>
-        <member name="M:BoggleService.Controllers.BoggleServiceController.PutCancelJoin(System.String,System.String)">
+        <member name="M:BoggleService.Controllers.BoggleServiceController.PutCancelJoin(System.String)">
              <summary>
              Cancel a pending request to join a game.
             
@@ -522,8 +522,7 @@
              (Forbidden). Otherwise, removes UserToken from the pending game and responds with status
              204 (NoContent).
              </summary>
-             <param name="gameID"></param>
-             <param name="value"></param>
+             <param name="UserToken">The unique identifying token for the player to be removed from the pending game</param>
         </member>
         <member name="M:BoggleService.Controllers.BoggleServiceController.PutPlayWord(System.String,System.String)">
             <summary>
@@ -556,6 +555,11 @@
             
             </summary>
         </member>
+        <member name="F:BoggleService.Models.Game.GameID">
+            <summary>
+            
+            </summary>
+        </member>
         <member name="F:BoggleService.Models.Game.GameState">
             <summary>
             
@@ -572,6 +576,11 @@
             </summary>
         </member>
         <member name="F:BoggleService.Models.Game.TimeLeft">
+            <summary>
+            
+            </summary>
+        </member>
+        <member name="F:BoggleService.Models.Game.TimeStarted">
             <summary>
             
             </summary>

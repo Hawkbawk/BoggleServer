@@ -1,15 +1,23 @@
-﻿using System.Runtime.Serialization;
+﻿using System;
+using System.Runtime.Serialization;
 
 namespace BoggleService.Models
 {
     /// <summary>
     /// 
     /// </summary>
+    [DataContract]
     public class Game
     {
         /// <summary>
         /// 
         /// </summary>
+        [IgnoreDataMember]
+        public string GameID;
+        /// <summary>
+        /// 
+        /// </summary>
+        [DataMember]
         public string GameState;
         /// <summary>
         /// 
@@ -27,6 +35,12 @@ namespace BoggleService.Models
         /// </summary>
         [DataMember(EmitDefaultValue = false)]
         public int TimeLeft;
+
+        /// <summary>
+        /// 
+        /// </summary>
+        [IgnoreDataMember]
+        public TimeSpan TimeStarted;
         /// <summary>
         /// 
         /// </summary>

@@ -6,16 +6,18 @@ namespace BoggleService.Models
     /// <summary>
     /// 
     /// </summary>
+    [DataContract]
     public class User
     {
         /// <summary>
         /// 
         /// </summary>
-        [DataMember(EmitDefaultValue = false)]
+        [IgnoreDataMember]
         public string UserToken;
         /// <summary>
         /// 
         /// </summary>
+        [DataMember]
         public string Nickname;
         /// <summary>
         /// 
@@ -25,6 +27,7 @@ namespace BoggleService.Models
         /// <summary>
         /// 
         /// </summary>
+        [DataMember]
         public int Score;
         /// <summary>
         /// 
