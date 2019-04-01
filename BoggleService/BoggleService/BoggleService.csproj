@@ -34,6 +34,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <DocumentationFile>App_Data/BoggleService.xml</DocumentationFile>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -167,7 +168,9 @@
       <DependentUpon>Global.asax</DependentUpon>
     </Compile>
     <Compile Include="Models\Game.cs" />
-    <Compile Include="Models\PlayWord.cs" />
+    <Compile Include="Models\JoinGameRequest.cs" />
+    <Compile Include="Models\JoinGameResponse.cs" />
+    <Compile Include="Models\PlayWordRequest.cs" />
     <Compile Include="Models\User.cs" />
     <Compile Include="Models\WordAndScore.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

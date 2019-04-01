@@ -1,4 +1,6 @@
-﻿namespace BoggleService.Controllers
+﻿using System.Web.Mvc;
+
+namespace BoggleService.Controllers
 {
     public class HomeController : Controller
     {

@@ -13,69 +13,58 @@ namespace BoggleServiceLocalTests.Tests.Controllers
     [TestClass]
     public class ValuesControllerTest
     {
-        [TestMethod]
-        public void Get()
-        {
-            // Arrange
-            BoggleServiceController controller = new BoggleServiceController();
+        //[TestMethod]
+        //public void Get()
+        //{
+        //    // Arrange
+        //    BoggleServiceController controller = new BoggleServiceController();
 
-            // Act
-            IEnumerable<string> result = controller.Get();
+        //    // Act
+        //    IEnumerable<string> result = controller.GetGameStatus();
 
-            // Assert
-            Assert.IsNotNull(result);
-            Assert.AreEqual(2, result.Count());
-            Assert.AreEqual("value1", result.ElementAt(0));
-            Assert.AreEqual("value2", result.ElementAt(1));
-        }
+        //    // Assert
+        //    Assert.IsNotNull(result);
+        //    Assert.AreEqual(2, result.Count());
+        //    Assert.AreEqual("value1", result.ElementAt(0));
+        //    Assert.AreEqual("value2", result.ElementAt(1));
+        //}
 
-        [TestMethod]
-        public void GetById()
-        {
-            // Arrange
-            BoggleServiceController controller = new BoggleServiceController();
+        //[TestMethod]
+        //public void GetById()
+        //{
+        //    // Arrange
+        //    BoggleServiceController controller = new BoggleServiceController();
 
-            // Act
-            string result = controller.Get(5);
+        //    // Act
+        //    string result = controller.GetGameStatus(5);
 
-            // Assert
-            Assert.AreEqual("value", result);
-        }
+        //    // Assert
+        //    Assert.AreEqual("value", result);
+        //}
 
-        [TestMethod]
-        public void Post()
-        {
-            // Arrange
-            BoggleServiceController controller = new BoggleServiceController();
+        //[TestMethod]
+        //public void Post()
+        //{
+        //    // Arrange
+        //    BoggleServiceController controller = new BoggleServiceController();
 
-            // Act
-            controller.Post("value");
+        //    // Act
+        //    controller.Post("value");
 
-            // Assert
-        }
+        //    // Assert
+        //}
 
-        [TestMethod]
-        public void Put()
-        {
-            // Arrange
-            BoggleServiceController controller = new BoggleServiceController();
+        //[TestMethod]
+        //public void Put()
+        //{
+        //    // Arrange
+        //    BoggleServiceController controller = new BoggleServiceController();
 
-            // Act
-            controller.Put(5, "value");
+        //    // Act
+        //    controller.Put(5, "value");
 
-            // Assert
-        }
+        //    // Assert
+        //}
 
-        [TestMethod]
-        public void Delete()
-        {
-            // Arrange
-            BoggleServiceController controller = new BoggleServiceController();
-
-            // Act
-            controller.Delete(5);
-
-            // Assert
-        }
     }
 }

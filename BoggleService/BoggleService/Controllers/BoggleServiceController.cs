@@ -1,14 +1,25 @@
-﻿using System.Collections.Generic;
+﻿using BoggleService.Models;
+using Newtonsoft.Json;
+using System;
+using System.Collections.Generic;
+using System.Net;
+using System.Threading;
+using System.Web.Http;
 
 namespace BoggleService.Controllers
 {
+    /// <summary>
+    /// 
+    /// </summary>
     public class BoggleServiceController : ApiController
     {
-        private static Dictionary<string, User> Users;
-        private static Dictionary<string, Game> Games;
+        private static Dictionary<string, User> Users = new Dictionary<string, User>();
+        private static Dictionary<string, Game> Games = new Dictionary<string, Game>();
+        private static Game PendingGame = new Game();
+        private static int CurrentGameNum = 0;
         private static readonly object sync = new object();
 
-        // POST api/values
+        // POST BoggleService/users
         /// <summary>
         /// Create a new user.
         ///
@@ -17,16 +28,45 @@ namespace BoggleService.Controllers
         /// trimmed Nickname.The returned user token should be used to identify the user in
         /// subsequent requests. Responds with status 200 (Ok).
         /// </summary>
-        /// <param name="value"></param>
+        /// <param name="nickname">The name of the user to be registered</param>
         [Route("BoggleService/users")]
-        public void PostMakeUser([FromBody]string value)
+        public string PostMakeUser([FromBody]string nickname)
         {
+            if (nickname == null || nickname.Trim().Length == 0 || nickname.Trim().Length > 50)
+            {
+                throw new HttpResponseException(HttpStatusCode.Forbidden);
+            }
+            else if (nickname.Trim()[0] == '@')
+            {
+                Thread.Sleep(10_000);
+            }
+            else if (nickname.Trim()[0] == '#')
+            {
+                throw new HttpResponseException(HttpStatusCode.InternalServerError);
+            }
+            string currentUserToken;
+            lock (sync)
+            {
+                currentUserToken = Guid.NewGuid().ToString();
+
+                User currentUser = new User()
+                {
+                    UserToken = currentUserToken,
+                    Nickname = nickname,
+
+                };
+                Users.Add(currentUserToken, currentUser);
+            }
+
+            return JsonConvert.SerializeObject(currentUserToken);
+
+
         }
 
         // POST api/values
         /// <summary> Join a game.
         ///
-        /// If UserToken is invalid, TimeLimit < 5, or TimeLimit > 120, responds with status 403
+        /// If UserToken is invalid, TimeLimit is less than 5, or TimeLimit is greater than 120, responds with status 403
         /// (Forbidden). Otherwise, if UserToken is already a player in the pending game, responds
         /// with status 409 (Conflict). Otherwise, if there are no players in the pending game, adds
         /// UserToken as the first player of the pending game, and the TimeLimit as the pending
@@ -38,10 +78,41 @@ namespace BoggleService.Controllers
         /// game's game ID(which should be the same as the old pending game's game ID). Responds with
         /// status 200 (Ok).
         ///
-        /// </summary> <param name="value"></param>
+        /// </summary> <param name="join"></param>
         [Route("BoggleService/games")]
-        public void PostJoinGame([FromBody]string value)
+        public void PostJoinGame([FromBody]JoinGameRequest join)
         {
+            User currentUser;
+            if (join.TimeLimit < 5 || join.TimeLimit > 120)
+            {
+                throw new HttpResponseException(HttpStatusCode.Forbidden);
+            }
+            else if (!Users.TryGetValue(join.UserToken, out currentUser))
+            {
+                throw new HttpResponseException(HttpStatusCode.Forbidden);
+            }
+
+            if (PendingGame.Player1 == null)
+            {
+                PendingGame.Player1 = new User()
+                {
+                    UserToken = currentUser.UserToken,
+                    Nickname = currentUser.Nickname
+
+                };
+
+
+            } else
+            {
+                PendingGame.Player2 = new User()
+                {
+                    UserToken = currentUser.UserToken,
+                    Nickname = currentUser.Nickname
+                };
+
+
+            }
+
         }
 
         // PUT api/games
