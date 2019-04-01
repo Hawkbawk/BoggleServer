@@ -1,4 +1,5 @@
-﻿using BoggleService.Models;
+﻿using Boggle;
+using BoggleService.Models;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -78,9 +79,9 @@ namespace BoggleService.Controllers
         /// game's game ID(which should be the same as the old pending game's game ID). Responds with
         /// status 200 (Ok).
         ///
-        /// </summary> <param name="join"></param>
+        /// </summary> <param name="join">A request that contains the user token and the user's desired time limit</param>
         [Route("BoggleService/games")]
-        public void PostJoinGame([FromBody]JoinGameRequest join)
+        public string PostJoinGame([FromBody]JoinGameRequest join)
         {
             User currentUser;
             if (join.TimeLimit < 5 || join.TimeLimit > 120)
@@ -97,20 +98,43 @@ namespace BoggleService.Controllers
                 PendingGame.Player1 = new User()
                 {
                     UserToken = currentUser.UserToken,
-                    Nickname = currentUser.Nickname
-
+                    Nickname = currentUser.Nickname,
+                    DesiredTimeLimit = join.TimeLimit
+                };
+                JoinGameResponse response = new JoinGameResponse()
+                {
+                    GameID = "G" + CurrentGameNum++,
+                    IsPending = true
                 };
 
+                return JsonConvert.SerializeObject(response);
 
             } else
             {
+                // Put the current user into the pending game as player 2.
                 PendingGame.Player2 = new User()
                 {
                     UserToken = currentUser.UserToken,
-                    Nickname = currentUser.Nickname
+                    Nickname = currentUser.Nickname,
+                    DesiredTimeLimit = join.TimeLimit
+                };
+                // Construct the game as it's now active.
+                PendingGame.GameState = "active";
+                PendingGame.Board = new BoggleBoard().ToString();
+                PendingGame.TimeLimit = (PendingGame.Player1.DesiredTimeLimit + PendingGame.Player2.DesiredTimeLimit) / 2;
+                PendingGame.TimeLeft = PendingGame.TimeLimit;
+
+                // Add the pending game and then replace the PendingGame with an empty object.
+                Games.Add("G" + CurrentGameNum, PendingGame);
+                PendingGame = new Game();
+
+                JoinGameResponse response = new JoinGameResponse()
+                {
+                    GameID = "G" + CurrentGameNum,
+                    IsPending = false
                 };
 
-
+                return JsonConvert.SerializeObject(response);
             }
 
         }

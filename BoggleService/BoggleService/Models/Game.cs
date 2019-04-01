@@ -21,6 +21,12 @@ namespace BoggleService.Models
         /// </summary>
         [DataMember(EmitDefaultValue = false)]
         public int TimeLimit;
+
+        /// <summary>
+        /// 
+        /// </summary>
+        [DataMember(EmitDefaultValue = false)]
+        public int TimeLeft;
         /// <summary>
         /// 
         /// </summary>
