@@ -12,6 +12,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "BoggleServicePieces", "Bogg
 		dictionary.txt = dictionary.txt
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BoggleService", "BoggleService\BoggleService.csproj", "{61CE1D9A-C8E8-4D31-A918-FBA16EDDB438}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BoggleServiceLocalTests.Tests", "BoggleServiceLocalTests.Tests\BoggleServiceLocalTests.Tests.csproj", "{0CEDCF75-A2D2-40C5-8E58-4F525593D472}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -22,6 +26,14 @@ Global
 		{71936E2C-E15E-44DE-ABFF-B69805FAE163}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{71936E2C-E15E-44DE-ABFF-B69805FAE163}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{71936E2C-E15E-44DE-ABFF-B69805FAE163}.Release|Any CPU.Build.0 = Release|Any CPU
+		{61CE1D9A-C8E8-4D31-A918-FBA16EDDB438}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{61CE1D9A-C8E8-4D31-A918-FBA16EDDB438}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{61CE1D9A-C8E8-4D31-A918-FBA16EDDB438}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{61CE1D9A-C8E8-4D31-A918-FBA16EDDB438}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0CEDCF75-A2D2-40C5-8E58-4F525593D472}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0CEDCF75-A2D2-40C5-8E58-4F525593D472}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0CEDCF75-A2D2-40C5-8E58-4F525593D472}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0CEDCF75-A2D2-40C5-8E58-4F525593D472}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
