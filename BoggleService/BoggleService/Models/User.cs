@@ -17,7 +17,7 @@ namespace BoggleService.Models
         /// <summary>
         /// 
         /// </summary>
-        [DataMember]
+        [DataMember(EmitDefaultValue = false)]
         public string Nickname;
         /// <summary>
         /// 
