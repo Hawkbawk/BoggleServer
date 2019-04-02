@@ -53,7 +53,7 @@ namespace BoggleService.Controllers
                 {
                     UserToken = currentUserToken,
                     Nickname = nickname,
-
+                    WordsPlayed = new List<WordAndScore>()
                 };
                 Users.Add(currentUserToken, currentUser);
             }
@@ -101,7 +101,8 @@ namespace BoggleService.Controllers
                     {
                         UserToken = currentUser.UserToken,
                         Nickname = currentUser.Nickname,
-                        DesiredTimeLimit = join.TimeLimit
+                        DesiredTimeLimit = join.TimeLimit,
+                        WordsPlayed = new List<WordAndScore>()
                     };
                     JoinGameResponse response = new JoinGameResponse()
                     {
@@ -119,7 +120,9 @@ namespace BoggleService.Controllers
                     {
                         UserToken = currentUser.UserToken,
                         Nickname = currentUser.Nickname,
-                        DesiredTimeLimit = join.TimeLimit
+                        DesiredTimeLimit = join.TimeLimit,
+                        WordsPlayed = new List<WordAndScore>()
+
                     };
                     // Construct the game as it's now active.
                     PendingGame.GameState = "active";
@@ -316,12 +319,13 @@ namespace BoggleService.Controllers
                 Score = player.Score,
                 WordsPlayed = new List<WordAndScore>(player.WordsPlayed)
             };
+
             return clone;
         }
         private int ComputeTimeLeft(Game g)
         {
             return (int)(g.TimeStarted.TotalSeconds + g.TimeLimit)
-                      - (int)(g.TimeStarted.TotalSeconds + DateTime.Now.TimeOfDay.TotalSeconds);
+                      - (int)(DateTime.Now.TimeOfDay.TotalSeconds);
         }
     }
 
