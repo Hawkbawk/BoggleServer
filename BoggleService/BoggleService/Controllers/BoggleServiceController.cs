@@ -200,7 +200,7 @@ namespace BoggleService.Controllers
         /// <param name="brief"></param>
         /// <returns></returns>
         [Route("BoggleService/games/{gameID}/{brief}")]
-        public Game GetGameStatus( string gameID, bool brief)
+        public Game GetGameStatus(string gameID, bool brief)
         {
             Game currentGame;
             Game response;
@@ -225,6 +225,7 @@ namespace BoggleService.Controllers
                 if (ComputeTimeLeft(currentGame) <= 0)
                 {
                     currentGame.GameState = "completed";
+                    currentGame.TimeLeft = 0;
                 }
                 // Now determine what our appropriate response should be.
                 if (currentGame.GameState.Equals("active") && brief)
@@ -235,26 +236,17 @@ namespace BoggleService.Controllers
                     {
                         GameState = "active",
                         TimeLeft = ComputeTimeLeft(currentGame),
-                        Player1 = currentGame.Player1,
-                        Player2 = currentGame.Player2
+                        Player1 = DeepCopyUser(currentGame.Player1),
+                        Player2 = DeepCopyUser(currentGame.Player2)
                     };
 
 
                     // Set all of the player info except for their score to null, so that it doesn't get serialized
-                    response.Player1.UserToken = null;
                     response.Player1.Nickname = null;
                     response.Player1.WordsPlayed = null;
 
-                    response.Player2.UserToken = null;
                     response.Player2.Nickname = null;
                     response.Player2.WordsPlayed = null;
-
-                    // Reset all of the values that we used that we don't want serialized, but only if the game is completed.
-                    if (response.TimeLeft < 0)
-                    {
-                        response.GameState = "completed";
-                        response.TimeLeft = 0;
-                    }
                 }
                 // If the game is completed and they want a brief status, do the following.
                 else if (currentGame.GameState.Equals("completed") && brief)
@@ -263,28 +255,46 @@ namespace BoggleService.Controllers
                     response = new Game
                     {
                         GameState = "completed",
-                        Player1 = currentGame.Player1,
-                        Player2 = currentGame.Player2
+                        Player1 = DeepCopyUser(currentGame.Player1),
+                        Player2 = DeepCopyUser(currentGame.Player2)
 
                     };
 
                     // Change all of the data in the response so when serialized it matches the brief response for a completed game.
-                    response.Player1.UserToken = null;
                     response.Player1.Nickname = null;
                     response.Player1.WordsPlayed = null;
 
-                    response.Player2.UserToken = null;
                     response.Player2.Nickname = null;
                     response.Player2.WordsPlayed = null;
                 }
                 // If the game is active and they want a complete response, do the following.
                 else if (currentGame.GameState.Equals("active"))
                 {
-                    response = new Game();
+                    response = new Game()
+                    {
+                        GameState = "active",
+                        Board = currentGame.Board,
+                        TimeLimit = currentGame.TimeLimit,
+                        TimeLeft = ComputeTimeLeft(currentGame),
+                        Player1 = DeepCopyUser(currentGame.Player1),
+                        Player2 = DeepCopyUser(currentGame.Player2)
+                    };
+
+                    response.Player1.WordsPlayed = null;
+                    response.Player2.WordsPlayed = null;
+
                 }
                 else
                 {
-                    response = new Game();
+                    response = new Game()
+                    {
+                        GameState = "completed",
+                        Board = currentGame.Board,
+                        TimeLimit = currentGame.TimeLimit,
+                        TimeLeft = ComputeTimeLeft(currentGame),
+                        Player1 = DeepCopyUser(currentGame.Player1),
+                        Player2 = DeepCopyUser(currentGame.Player2)
+                    };
                 }
 
 
@@ -294,10 +304,20 @@ namespace BoggleService.Controllers
 
 
 
-            return response;
+                return response;
             }
         }
-
+        private User DeepCopyUser(User player)
+        {
+            User clone = new User()
+            {
+                UserToken = player.UserToken,
+                Nickname = player.Nickname,
+                Score = player.Score,
+                WordsPlayed = new List<WordAndScore>(player.WordsPlayed)
+            };
+            return clone;
+        }
         private int ComputeTimeLeft(Game g)
         {
             return (int)(g.TimeStarted.TotalSeconds + g.TimeLimit)
