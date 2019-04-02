@@ -497,7 +497,7 @@
              </summary>
              <param name="nickname">The name of the user to be registered</param>
         </member>
-        <member name="M:BoggleService.Controllers.BoggleServiceController.PostJoinGame(BoggleService.Models.JoinGame)">
+        <member name="M:BoggleService.Controllers.BoggleServiceController.PostJoinGame(BoggleService.Models.JoinGameRequest)">
              <summary> Join a game.
             
              If UserToken is invalid, TimeLimit is less than 5, or TimeLimit is greater than 120, responds with status 403
@@ -512,7 +512,7 @@
              game's game ID(which should be the same as the old pending game's game ID). Responds with
              status 200 (Ok).
             
-             </summary> <param name="value"></param>
+             </summary> <param name="join"></param>
         </member>
         <member name="M:BoggleService.Controllers.BoggleServiceController.PutCancelJoin(System.String)">
              <summary>
@@ -641,9 +641,93 @@
             </summary>
         </member>
         <member name="T:BoggleService.Models.User">
-        <member name="T:BoggleService.Models.JoinGame">
             <summary>
             
+            </summary>
+        </member>
+        <member name="F:BoggleService.Models.User.UserToken">
+            <summary>
+            
+            </summary>
+        </member>
+        <member name="F:BoggleService.Models.User.Nickname">
+            <summary>
+            
+            </summary>
+        </member>
+        <member name="F:BoggleService.Models.User.DesiredTimeLimit">
+            <summary>
+            
+            </summary>
+        </member>
+        <member name="F:BoggleService.Models.User.Score">
+            <summary>
+            
+            </summary>
+        </member>
+        <member name="F:BoggleService.Models.User.WordsPlayed">
+            <summary>
+            
+            </summary>
+        </member>
+        <member name="T:BoggleService.Models.WordAndScore">
+            <summary>
+            
+            </summary>
+        </member>
+        <member name="F:BoggleService.Models.WordAndScore.Word">
+            <summary>
+            
+            </summary>
+        </member>
+        <member name="F:BoggleService.Models.WordAndScore.Score">
+            <summary>
+            
+            </summary>
+        </member>
+        <member name="T:Boggle.BoggleBoard">
+            <summary>
+            Represents a Boggle board.
+            </summary>
+        </member>
+        <member name="M:Boggle.BoggleBoard.#ctor">
+            <summary>
+            Creates a randomly-generated BoggleBoard 
+            </summary>
+        </member>
+        <member name="M:Boggle.BoggleBoard.#ctor(System.String)">
+            <summary>
+            Creates a BoggleBoard from the provided 16-letter string.  The
+            method is case-insensitive.  If there aren't exactly 16 letters
+            in the string, throws an ArgumentException.  The string consists
+            of the first row, then the second row, then the third, then the fourth.
+            </summary>
+        </member>
+        <member name="M:Boggle.BoggleBoard.MakeBoard(System.String)">
+            <summary>
+            Makes a board from the 16-letter string
+            </summary>
+        </member>
+        <member name="M:Boggle.BoggleBoard.ToString">
+            <summary>
+            Returns the 16 letters that make up this board.  It is formed
+            by appending the first row to the second row to the third row
+            to the fourth row.
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="M:Boggle.BoggleBoard.CanBeFormed(System.String)">
+            <summary>
+            Reports whether the provided word can be formed by tracking through
+            this Boggle board as described in the rules of Boggle.  The method
+            is case-insensitive.
+            </summary>
+        </member>
+        <member name="M:Boggle.BoggleBoard.CanBeFormed(System.String,System.Int32,System.Int32,System.Boolean[0:,0:])">
+            <summary>
+            Reports whether the provided word can be formed by tracking through
+            this Boggle board by beginning at location [i,j] and avoiding any
+            squares marked as visited.
             </summary>
         </member>
     </members>

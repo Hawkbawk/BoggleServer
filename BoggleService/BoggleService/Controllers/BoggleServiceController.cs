@@ -129,12 +129,12 @@ namespace BoggleService.Controllers
                     PendingGame.TimeStarted = DateTime.Now.TimeOfDay;
 
                     // Add the pending game and then replace the PendingGame with an empty object.
-                    Games.Add("G" + CurrentGameNum++, PendingGame);
+                    Games.Add("G" + CurrentGameNum, PendingGame);
                     PendingGame = new Game();
 
                     JoinGameResponse response = new JoinGameResponse()
                     {
-                        GameID = "G" + CurrentGameNum,
+                        GameID = "G" + CurrentGameNum++,
                         IsPending = false
                     };
 
@@ -206,21 +206,30 @@ namespace BoggleService.Controllers
             Game response;
             lock (sync)
             {
-                if (PendingGame.GameID.Equals(gameID))
+                // If the game is pending, they will always get the same response.
+                // If the game is active and they want a brief response, do the following.
+                if (PendingGame.GameID != null && PendingGame.GameID.Equals(gameID))
                 {
                     response = new Game()
                     {
                         GameState = "pending"
                     };
+                    return response;
                 }
+                // If the game isn't pending and isn't on our list, return a Forbidden code.
                 else if (!Games.TryGetValue(gameID, out currentGame))
                 {
                     throw new HttpResponseException(HttpStatusCode.Forbidden);
                 }
-                // If the game is pending, they will always get the same response.
-                // If the game is active and they want a brief response, do the following.
-                else if (currentGame.GameState.Equals("active") && brief)
+                // Determine the game state based on the amount of time left
+                if (ComputeTimeLeft(currentGame) <= 0)
                 {
+                    currentGame.GameState = "completed";
+                }
+                // Now determine what our appropriate response should be.
+                if (currentGame.GameState.Equals("active") && brief)
+                {
+                    // TODO: We have to do a deep copy every single time we copy over the state of the game, otherwise we're just passing references
                     // Copy over the state of the game.
                     response = new Game()
                     {
@@ -245,7 +254,6 @@ namespace BoggleService.Controllers
                     {
                         response.GameState = "completed";
                         response.TimeLeft = 0;
-                        response.TimeStarted = default(TimeSpan);
                     }
                 }
                 // If the game is completed and they want a brief status, do the following.

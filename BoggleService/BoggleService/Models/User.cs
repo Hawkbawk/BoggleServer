@@ -22,7 +22,7 @@ namespace BoggleService.Models
         /// <summary>
         /// 
         /// </summary>
-        [DataMember(EmitDefaultValue = false)]
+        [IgnoreDataMember]
         public int DesiredTimeLimit;
         /// <summary>
         /// 
