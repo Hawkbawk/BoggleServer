@@ -164,7 +164,7 @@ namespace BoggleService.Controllers
                 {
                     throw new HttpResponseException(HttpStatusCode.Forbidden);
                 }
-                else if (!PendingGame.Player1.UserToken.Equals(UserToken))
+                else if (PendingGame.Player1.UserToken != null && !PendingGame.Player1.UserToken.Equals(UserToken))
                 {
                     throw new HttpResponseException(HttpStatusCode.Forbidden);
                 }
