@@ -524,7 +524,7 @@
              </summary>
              <param name="UserToken">The unique identifying token for the player to be removed from the pending game</param>
         </member>
-        <member name="M:BoggleService.Controllers.BoggleServiceController.PutPlayWord(System.String,System.String,System.String)">
+        <member name="M:BoggleService.Controllers.BoggleServiceController.PutPlayWord(System.String,BoggleService.Models.PutWordRequest)">
             <summary>
             Play a word in a game. If Word is null or empty or longer than 30 characters when
             trimmed, or if gameID or UserToken is invalid, or if UserToken is not a player in the
@@ -536,8 +536,8 @@
             case sensitive.
             </summary>
             <param name="gameID"></param>
-            <param name="userToken"></param>
-            <param name="word"></param>
+            <param name="UserToken"></param>
+            <param name="Word"></param>
         </member>
         <member name="M:BoggleService.Controllers.BoggleServiceController.GetGameStatus(System.String,System.Boolean)">
             <summary>

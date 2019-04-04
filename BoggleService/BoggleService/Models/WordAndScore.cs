@@ -1,4 +1,5 @@
-﻿using System.Runtime.Serialization;
+﻿using System;
+using System.Runtime.Serialization;
 
 namespace BoggleService.Models
 {
@@ -6,7 +7,7 @@ namespace BoggleService.Models
     /// 
     /// </summary>
     [DataContract]
-    public class WordAndScore
+    public class WordAndScore : IComparable
     {
         /// <summary>
         /// 
@@ -18,5 +19,12 @@ namespace BoggleService.Models
         /// </summary>
         [DataMember(EmitDefaultValue = false)]
         public int Score;
+
+        public int CompareTo(object obj)
+        {
+            WordAndScore cmp = obj as WordAndScore;
+            return Word.CompareTo(cmp.Word);
+            
+        }
     }
 }

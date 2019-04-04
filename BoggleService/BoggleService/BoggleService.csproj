@@ -172,6 +172,7 @@
     <Compile Include="Models\JoinGameRequest.cs" />
     <Compile Include="Models\JoinGameResponse.cs" />
     <Compile Include="Models\PlayWordRequest.cs" />
+    <Compile Include="Models\PutWordRequest.cs" />
     <Compile Include="Models\User.cs" />
     <Compile Include="Models\WordAndScore.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

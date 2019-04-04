@@ -22,7 +22,7 @@ namespace BoggleService.Controllers
         private static HashSet<string> dictionary = new HashSet<string>();
 
 
-        public BoggleServiceController()
+        static BoggleServiceController()
         {
             string[] text = File.ReadAllLines(AppDomain.CurrentDomain.BaseDirectory + "dictionary.txt");
             foreach (string word in text)
@@ -199,30 +199,32 @@ namespace BoggleService.Controllers
         /// case sensitive.
         /// </summary>
         /// <param name="gameID"></param>
-        /// <param name="userToken"></param>
-        /// <param name="word"></param>
+        /// <param name="UserToken"></param>
+        /// <param name="Word"></param>
         [Route("BoggleService/games/{gameID}")]
-        public int PutPlayWord([FromUri] string gameID, [FromBody] string userToken, [FromBody]string word)
+        public int PutPlayWord([FromUri] string gameID, PutWordRequest request)
         {
             // Check for all of the possible errors that could occur according to the API
+            string UserToken = request.UserToken;
+            string Word = request.Word;
             Game currentGame;
-            if (word == null)
+            if (Word == null)
             {
                 throw new HttpResponseException(HttpStatusCode.Forbidden);
             }
-            else if (word.Trim().Length == 0 || word.Trim().Length > 30)
+            else if (Word.Trim().Length == 0 || Word.Trim().Length > 30)
             {
                 throw new HttpResponseException(HttpStatusCode.Forbidden);
             }
-            else if (!Games.TryGetValue(gameID, out currentGame) || !Users.TryGetValue(userToken, out User temp))
+            else if (!Games.TryGetValue(gameID, out currentGame) || !Users.TryGetValue(UserToken, out User temp))
             {
                 throw new HttpResponseException(HttpStatusCode.Forbidden);
             }
-            else if (PendingGame.GameID.Equals(gameID) || currentGame.GameState != "active")
+            else if ((PendingGame.GameID != null && PendingGame.GameID.Equals(gameID)) || currentGame.GameState != "active")
             {
                 throw new HttpResponseException(HttpStatusCode.Conflict);
             }
-            else if (!currentGame.Player1.UserToken.Equals(userToken) || !currentGame.Player2.UserToken.Equals(userToken))
+            else if (!currentGame.Player1.UserToken.Equals(UserToken) && !currentGame.Player2.UserToken.Equals(UserToken))
             {
                 throw new HttpResponseException(HttpStatusCode.Forbidden);
             }
@@ -230,15 +232,15 @@ namespace BoggleService.Controllers
             BoggleBoard currentBoard = new BoggleBoard(Games[gameID].Board);
             WordAndScore wordBeingPlayed = new WordAndScore()
             {
-                Word = word
+                Word = Word
             };
-            if ((word.Length > 2 && !dictionary.Contains(word)) || !currentBoard.CanBeFormed(word))
+            if ((Word.Length > 2 && !dictionary.Contains(Word)) || !currentBoard.CanBeFormed(Word))
             {
                 wordBeingPlayed.Score = -1;
             }
             else
             {
-                switch (word.Length)
+                switch (Word.Length)
                 {
                     case 1:
                     case 2:
@@ -263,7 +265,7 @@ namespace BoggleService.Controllers
                 }
             }
 
-            bool arePlayerOne = DeterminePlayerNumber(currentGame, userToken);
+            bool arePlayerOne = DeterminePlayerNumber(currentGame, UserToken);
             if (arePlayerOne)
             {
                 if (currentGame.Player1.WordsPlayed.Contains(wordBeingPlayed))
