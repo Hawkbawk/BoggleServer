@@ -2,6 +2,7 @@
 using BoggleService.Models;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Net;
 using System.Threading;
 using System.Web.Http;
@@ -18,6 +19,18 @@ namespace BoggleService.Controllers
         private static Game PendingGame = new Game();
         private static int CurrentGameNum = 0;
         private static readonly object sync = new object();
+        private static HashSet<string> dictionary = new HashSet<string>();
+
+
+        public BoggleServiceController()
+        {
+            string[] text = File.ReadAllLines(AppDomain.CurrentDomain.BaseDirectory + "dictionary.txt");
+            foreach (string word in text)
+            {
+                dictionary.Add(word);
+            }
+        }
+
 
         // POST BoggleService/users
         /// <summary>
@@ -186,10 +199,99 @@ namespace BoggleService.Controllers
         /// case sensitive.
         /// </summary>
         /// <param name="gameID"></param>
-        /// <param name="value"></param>
+        /// <param name="userToken"></param>
+        /// <param name="word"></param>
         [Route("BoggleService/games/{gameID}")]
-        public void PutPlayWord([FromUri] string gameID, [FromBody]string value)
+        public int PutPlayWord([FromUri] string gameID, [FromBody] string userToken, [FromBody]string word)
         {
+            // Check for all of the possible errors that could occur according to the API
+            Game currentGame;
+            if (word == null)
+            {
+                throw new HttpResponseException(HttpStatusCode.Forbidden);
+            }
+            else if (word.Trim().Length == 0 || word.Trim().Length > 30)
+            {
+                throw new HttpResponseException(HttpStatusCode.Forbidden);
+            }
+            else if (!Games.TryGetValue(gameID, out currentGame) || !Users.TryGetValue(userToken, out User temp))
+            {
+                throw new HttpResponseException(HttpStatusCode.Forbidden);
+            }
+            else if (PendingGame.GameID.Equals(gameID) || currentGame.GameState != "active")
+            {
+                throw new HttpResponseException(HttpStatusCode.Conflict);
+            }
+            else if (!currentGame.Player1.UserToken.Equals(userToken) || !currentGame.Player2.UserToken.Equals(userToken))
+            {
+                throw new HttpResponseException(HttpStatusCode.Forbidden);
+            }
+            // Otherwise, play the word in the game and return it's score.
+            BoggleBoard currentBoard = new BoggleBoard(Games[gameID].Board);
+            WordAndScore wordBeingPlayed = new WordAndScore()
+            {
+                Word = word
+            };
+            if ((word.Length > 2 && !dictionary.Contains(word)) || !currentBoard.CanBeFormed(word))
+            {
+                wordBeingPlayed.Score = -1;
+            }
+            else
+            {
+                switch (word.Length)
+                {
+                    case 1:
+                    case 2:
+                        wordBeingPlayed.Score = 0;
+                        break;
+                    case 3:
+                    case 4:
+                        wordBeingPlayed.Score = 1;
+                        break;
+                    case 5:
+                        wordBeingPlayed.Score = 2;
+                        break;
+                    case 6:
+                        wordBeingPlayed.Score = 3;
+                        break;
+                    case 7:
+                        wordBeingPlayed.Score = 5;
+                        break;
+                    default:
+                        wordBeingPlayed.Score = 11;
+                        break;
+                }
+            }
+
+            bool arePlayerOne = DeterminePlayerNumber(currentGame, userToken);
+            if (arePlayerOne)
+            {
+                if (currentGame.Player1.WordsPlayed.Contains(wordBeingPlayed))
+                {
+                    wordBeingPlayed.Score = 0;
+                }
+                currentGame.Player1.Score += wordBeingPlayed.Score;
+                currentGame.Player1.WordsPlayed.Add(wordBeingPlayed);
+            }
+            else
+            {
+                if (currentGame.Player2.WordsPlayed.Contains(wordBeingPlayed))
+                {
+                    wordBeingPlayed.Score = 0;
+                }
+                currentGame.Player2.Score += wordBeingPlayed.Score;
+                currentGame.Player2.WordsPlayed.Add(wordBeingPlayed);
+            }
+
+            return wordBeingPlayed.Score;
+
+
+
+        }
+
+        private bool DeterminePlayerNumber(Game game, string userToken)
+        {
+            return game.Player1.UserToken.Equals(userToken);
         }
 
         /// <summary>

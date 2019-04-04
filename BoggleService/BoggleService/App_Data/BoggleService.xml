@@ -486,6 +486,12 @@
             
             </summary>
         </member>
+        <member name="M:BoggleService.Controllers.BoggleServiceController.Main(System.String[])">
+            <summary>
+            Reads in the dictionary file whenever the server is first run.
+            </summary>
+            <param name="args"></param>
+        </member>
         <member name="M:BoggleService.Controllers.BoggleServiceController.PostMakeUser(System.String)">
              <summary>
              Create a new user.
@@ -524,7 +530,7 @@
              </summary>
              <param name="UserToken">The unique identifying token for the player to be removed from the pending game</param>
         </member>
-        <member name="M:BoggleService.Controllers.BoggleServiceController.PutPlayWord(System.String,System.String)">
+        <member name="M:BoggleService.Controllers.BoggleServiceController.PutPlayWord(System.String,System.String,System.String)">
             <summary>
             Play a word in a game. If Word is null or empty or longer than 30 characters when
             trimmed, or if gameID or UserToken is invalid, or if UserToken is not a player in the
@@ -536,7 +542,8 @@
             case sensitive.
             </summary>
             <param name="gameID"></param>
-            <param name="value"></param>
+            <param name="userToken"></param>
+            <param name="word"></param>
         </member>
         <member name="M:BoggleService.Controllers.BoggleServiceController.GetGameStatus(System.String,System.Boolean)">
             <summary>
