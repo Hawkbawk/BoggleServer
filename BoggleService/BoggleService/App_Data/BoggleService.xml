@@ -486,12 +486,6 @@
             
             </summary>
         </member>
-        <member name="M:BoggleService.Controllers.BoggleServiceController.Main(System.String[])">
-            <summary>
-            Reads in the dictionary file whenever the server is first run.
-            </summary>
-            <param name="args"></param>
-        </member>
         <member name="M:BoggleService.Controllers.BoggleServiceController.PostMakeUser(System.String)">
              <summary>
              Create a new user.
