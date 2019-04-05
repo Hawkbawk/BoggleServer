@@ -1,4 +1,4 @@
-﻿using System;
+﻿
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
@@ -7,6 +7,7 @@ using System.Web.Http;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using BoggleService;
 using BoggleService.Controllers;
+using BoggleService.Models;
 
 namespace BoggleServiceLocalTests.Tests.Controllers
 {
@@ -29,41 +30,25 @@ namespace BoggleServiceLocalTests.Tests.Controllers
         //    Assert.AreEqual("value2", result.ElementAt(1));
         //}
 
-        //[TestMethod]
-        //public void GetById()
-        //{
-        //    // Arrange
-        //    BoggleServiceController controller = new BoggleServiceController();
 
-        //    // Act
-        //    string result = controller.GetGameStatus(5);
+        [TestMethod]
+        public void PostRegisterUser()
+        {
+            // Arrange
+            BoggleServiceController controller = new BoggleServiceController();
 
-        //    // Assert
-        //    Assert.AreEqual("value", result);
-        //}
+            string UserToken = controller.PostMakeUser("joe");
+            Assert.AreEqual(36, UserToken.Length);
+        }
 
-        //[TestMethod]
-        //public void Post()
-        //{
-        //    // Arrange
-        //    BoggleServiceController controller = new BoggleServiceController();
-
-        //    // Act
-        //    controller.Post("value");
-
-        //    // Assert
-        //}
 
         //[TestMethod]
         //public void Put()
         //{
-        //    // Arrange
         //    BoggleServiceController controller = new BoggleServiceController();
 
-        //    // Act
         //    controller.Put(5, "value");
 
-        //    // Assert
         //}
 
     }
