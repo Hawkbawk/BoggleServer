@@ -1,10 +1,7 @@
-﻿using System;
-using System.Text;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System.Diagnostics;
 using System.Dynamic;
 using static System.Net.HttpStatusCode;
-using static System.Net.Http.HttpMethod;
-using System.Diagnostics;
 
 namespace BoggleTests
 {
@@ -27,14 +24,14 @@ namespace BoggleTests
 
         // Command line arguments to IIS_EXPRESS
         private const string ARGUMENTS = @"/site:""BoggleService"" /apppool:""Clr4IntegratedAppPool"" /config:""..\..\..\.vs\config\applicationhost.config""";
-       
+
         /// <summary>
         /// Starts IIS
         /// </summary>
         public static void Start()
         {
             if (process == null)
-            {               
+            {
                 ProcessStartInfo info = new ProcessStartInfo(IIS_EXECUTABLE, ARGUMENTS);
                 info.WindowStyle = ProcessWindowStyle.Minimized;
                 info.UseShellExecute = false;
@@ -111,9 +108,6 @@ namespace BoggleTests
             Response r1 = client.DoMethodAsync("POST", "users", P1Nickname).Result;
             Assert.AreEqual(OK, r1.Status);
             Assert.AreEqual(36, r1.Data.Length);
-            dynamic P1 = new ExpandoObject();
-            P1.UserToken = r1.Data;
-            P1.TimeLimit = 60;
 
 
             //Registering Player 2 as "Joe2"
@@ -121,18 +115,215 @@ namespace BoggleTests
             Response r2 = client.DoMethodAsync("POST", "users", P2Nickname).Result;
             Assert.AreEqual(OK, r2.Status);
             Assert.AreEqual(36, r2.Data.Length);
-            dynamic P2 = new ExpandoObject();
-            P2.UserToken = r2.Data;
-            P2.TimeLimit = 60;
 
+            dynamic P1 = new ExpandoObject();
+            P1.UserToken = r1.Data;
+            P1.TimeLimit = 60;
             //P1 and P2 are joining the game
             Response j1 = client.DoMethodAsync("POST", "games", P1).Result;
             Assert.AreEqual(OK, j1.Status);
-            Assert.AreEqual("G0", j1.Data.GameID);
+            Assert.AreEqual("True", j1.Data.IsPending.ToString());
+
+
+            dynamic P2 = new ExpandoObject();
+            P2.UserToken = r2.Data;
+            P2.TimeLimit = 60;
             Response j2 = client.DoMethodAsync("POST", "games", P2).Result;
             Assert.AreEqual(OK, j2.Status);
+            Assert.AreEqual("False", j2.Data.IsPending.ToString());
+
+            Assert.AreEqual(j1.Data.GameID.ToString(), j2.Data.GameID.ToString());
         }
 
+
+        [TestMethod]
+        public void TestPlayWordNegativeValue()
+        {
+            //Registering Player 1 as "Joe"
+            string P1Nickname = "Joe";
+            Response r1 = client.DoMethodAsync("POST", "users", P1Nickname).Result;
+            Assert.AreEqual(OK, r1.Status);
+            Assert.AreEqual(36, r1.Data.Length);
+
+
+            //Registering Player 2 as "Joe2"
+            string P2Nickname = "Joe2";
+            Response r2 = client.DoMethodAsync("POST", "users", P2Nickname).Result;
+            Assert.AreEqual(OK, r2.Status);
+            Assert.AreEqual(36, r2.Data.Length);
+
+            dynamic P1 = new ExpandoObject();
+            P1.UserToken = r1.Data;
+            P1.TimeLimit = 60;
+            //P1 and P2 are joining the game
+            Response j1 = client.DoMethodAsync("POST", "games", P1).Result;
+            Assert.AreEqual(OK, j1.Status);
+            Assert.AreEqual("True", j1.Data.IsPending.ToString());
+
+
+            dynamic P2 = new ExpandoObject();
+            P2.UserToken = r2.Data;
+            P2.TimeLimit = 60;
+            Response j2 = client.DoMethodAsync("POST", "games", P2).Result;
+            Assert.AreEqual(OK, j2.Status);
+            Assert.AreEqual("False", j2.Data.IsPending.ToString());
+
+            Assert.AreEqual(j1.Data.GameID.ToString(), j2.Data.GameID.ToString());
+
+
+            dynamic PlayWord = new ExpandoObject();
+            PlayWord.UserToken = r2.Data;
+            PlayWord.Word = "jjj";
+            Response playWordResponse = client.DoMethodAsync("PUT", "games/" + j1.Data.GameID.ToString(), PlayWord).Result;
+
+
+            Assert.AreEqual(OK, playWordResponse.Status);
+            Assert.AreEqual(-1, playWordResponse.Data);
+
+        }
+
+        [TestMethod]
+        public void TestPlayAlreadyPlayedWord()
+        {
+            //Registering Player 1 as "Joe"
+            string P1Nickname = "Joe";
+            Response r1 = client.DoMethodAsync("POST", "users", P1Nickname).Result;
+            Assert.AreEqual(OK, r1.Status);
+            Assert.AreEqual(36, r1.Data.Length);
+
+
+            //Registering Player 2 as "Joe2"
+            string P2Nickname = "Joe2";
+            Response r2 = client.DoMethodAsync("POST", "users", P2Nickname).Result;
+            Assert.AreEqual(OK, r2.Status);
+            Assert.AreEqual(36, r2.Data.Length);
+
+            dynamic P1 = new ExpandoObject();
+            P1.UserToken = r1.Data;
+            P1.TimeLimit = 60;
+            //P1 and P2 are joining the game
+            Response j1 = client.DoMethodAsync("POST", "games", P1).Result;
+            Assert.AreEqual(OK, j1.Status);
+            Assert.AreEqual("True", j1.Data.IsPending.ToString());
+
+
+            dynamic P2 = new ExpandoObject();
+            P2.UserToken = r2.Data;
+            P2.TimeLimit = 60;
+            Response j2 = client.DoMethodAsync("POST", "games", P2).Result;
+            Assert.AreEqual(OK, j2.Status);
+            Assert.AreEqual("False", j2.Data.IsPending.ToString());
+
+            Assert.AreEqual(j1.Data.GameID.ToString(), j2.Data.GameID.ToString());
+
+
+            dynamic PlayWord = new ExpandoObject();
+            PlayWord.UserToken = r2.Data;
+            PlayWord.Word = "jjj";
+            Response playWordResponse = client.DoMethodAsync("PUT", "games/" + j1.Data.GameID.ToString(), PlayWord).Result;
+
+
+            Assert.AreEqual(OK, playWordResponse.Status);
+            Assert.AreEqual(-1, playWordResponse.Data);
+
+            PlayWord = new ExpandoObject();
+            PlayWord.UserToken = r2.Data;
+            PlayWord.Word = "jjj";
+            playWordResponse = client.DoMethodAsync("PUT", "games/" + j1.Data.GameID.ToString(), PlayWord).Result;
+
+
+            Assert.AreEqual(OK, playWordResponse.Status);
+            Assert.AreEqual(0, playWordResponse.Data);
+
+        }
+
+
+        [TestMethod]
+        public void TestGameStatusPending()
+        {
+            //Registering Player 1 as "Joe"
+            string P1Nickname = "Joe";
+            Response r1 = client.DoMethodAsync("POST", "users", P1Nickname).Result;
+            Assert.AreEqual(OK, r1.Status);
+            Assert.AreEqual(36, r1.Data.Length);
+
+
+            //Registering Player 2 as "Joe2"
+            string P2Nickname = "Joe2";
+            Response r2 = client.DoMethodAsync("POST", "users", P2Nickname).Result;
+            Assert.AreEqual(OK, r2.Status);
+            Assert.AreEqual(36, r2.Data.Length);
+
+            dynamic P1 = new ExpandoObject();
+            P1.UserToken = r1.Data;
+            P1.TimeLimit = 60;
+            //P1 and P2 are joining the game
+            Response j1 = client.DoMethodAsync("POST", "games", P1).Result;
+            Assert.AreEqual(OK, j1.Status);
+            Assert.AreEqual("True", j1.Data.IsPending.ToString());
+
+            Response gameStatus = client.DoMethodAsync("GET", "games/" + j1.Data.GameID.ToString() + "/true").Result;
+            Assert.AreEqual(OK, gameStatus.Status);
+            Assert.AreEqual("pending", gameStatus.Data.GameState.ToString());
+
+
+            dynamic P2 = new ExpandoObject();
+            P2.UserToken = r2.Data;
+            P2.TimeLimit = 60;
+            Response j2 = client.DoMethodAsync("POST", "games", P2).Result;
+        }
+
+        [TestMethod]
+        public void TestCancelPendingGame()
+        {
+            //Registering Player 1 as "Joe"
+            string P1Nickname = "Joe";
+            Response r1 = client.DoMethodAsync("POST", "users", P1Nickname).Result;
+            Assert.AreEqual(OK, r1.Status);
+            Assert.AreEqual(36, r1.Data.Length);
+
+            dynamic P1 = new ExpandoObject();
+            P1.UserToken = r1.Data;
+            P1.TimeLimit = 60;
+            //P1 and P2 are joining the game
+            Response j1 = client.DoMethodAsync("POST", "games", P1).Result;
+            Assert.AreEqual(OK, j1.Status);
+            Assert.AreEqual("True", j1.Data.IsPending.ToString());
+
+            Response cancel = client.DoMethodAsync("PUT", "games", P1.UserToken).Result;
+            Assert.AreEqual(NoContent, cancel.Status);
+        }
+
+
+        [TestMethod]
+        public void TestJoinGameNotRegistered()
+        {
+
+            dynamic request = new ExpandoObject();
+            request.UserToken = "suckas";
+            request.TimeLimit = 20;
+            Response response = client.DoMethodAsync("POST", "games", request).Result;
+            Assert.AreEqual(Forbidden, response.Status);
+        }
+
+
+        [TestMethod]
+        public void TestJoinGameInvalidTimeLimit()
+        {
+            // Register the user
+            string P1Nickname = "Joe";
+            Response r1 = client.DoMethodAsync("POST", "users", P1Nickname).Result;
+            Assert.AreEqual(OK, r1.Status);
+            Assert.AreEqual(36, r1.Data.Length);
+
+
+
+            dynamic request = new ExpandoObject();
+            request.UserToken = r1.Data;
+            request.TimeLimit = -1;
+            Response response = client.DoMethodAsync("POST", "games", request).Result;
+            Assert.AreEqual(Forbidden, response.Status);
+        }
 
 
 

@@ -48,7 +48,7 @@ namespace BoggleService.Controllers
         /// </summary>
         static BoggleServiceController()
         {
-            string[] text = File.ReadAllLines(AppDomain.CurrentDomain.BaseDirectory + "dictionary.txt");
+            string[] text = File.ReadAllLines(AppDomain.CurrentDomain.BaseDirectory + "/dictionary.txt");
             foreach (string word in text)
             {
                 dictionary.Add(word);
