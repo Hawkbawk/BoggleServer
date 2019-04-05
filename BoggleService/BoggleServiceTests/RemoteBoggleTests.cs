@@ -61,7 +61,7 @@ namespace BoggleTests
         /// This is automatically run prior to all the tests to start the server.
         /// </summary>
         // Remove the comment before the annotation if you want to make it work
-        // [ClassInitialize]
+        [ClassInitialize]
         public static void StartIIS(TestContext testContext)
         {
             IISAgent.Start();
@@ -71,11 +71,72 @@ namespace BoggleTests
         /// This is automatically run when all tests have completed to stop the server
         /// </summary>
         // Remove the comment before the annotation if you want to make it work
-        // [ClassCleanup]
+        [ClassCleanup]
         public static void StopIIS()
         {
             IISAgent.Stop();
         }
+
+        private RestClient client = new RestClient("http://localhost:60000/BoggleService/");
+
+
+        [TestMethod]
+        public void TestRegisterOnePlayer()
+        {
+            //Registering Player 1
+            string P1Nickname = "Joe";
+            Response r1 = client.DoMethodAsync("POST", "users", P1Nickname).Result;
+            Assert.AreEqual(OK, r1.Status);
+        }
+
+        [TestMethod]
+        public void TestRegisterTwoPlayers()
+        {
+            string P1Nickname = "Joe";
+            Response r1 = client.DoMethodAsync("POST", "users", P1Nickname).Result;
+            Assert.AreEqual(OK, r1.Status);
+            Assert.AreEqual(36, r1.Data.Length);
+
+            string P2Nickname = "Joe2";
+            Response r2 = client.DoMethodAsync("POST", "users", P2Nickname).Result;
+            Assert.AreEqual(OK, r2.Status);
+            Assert.AreEqual(36, r2.Data.Length);
+        }
+
+        [TestMethod]
+        public void TestJoiningTwoPlayers()
+        {
+            //Registering Player 1 as "Joe"
+            string P1Nickname = "Joe";
+            Response r1 = client.DoMethodAsync("POST", "users", P1Nickname).Result;
+            Assert.AreEqual(OK, r1.Status);
+            Assert.AreEqual(36, r1.Data.Length);
+            dynamic P1 = new ExpandoObject();
+            P1.UserToken = r1.Data;
+            P1.TimeLimit = 60;
+
+
+            //Registering Player 2 as "Joe2"
+            string P2Nickname = "Joe2";
+            Response r2 = client.DoMethodAsync("POST", "users", P2Nickname).Result;
+            Assert.AreEqual(OK, r2.Status);
+            Assert.AreEqual(36, r2.Data.Length);
+            dynamic P2 = new ExpandoObject();
+            P2.UserToken = r2.Data;
+            P2.TimeLimit = 60;
+
+            //P1 and P2 are joining the game
+            Response j1 = client.DoMethodAsync("POST", "games", P1).Result;
+            Assert.AreEqual(OK, j1.Status);
+            Assert.AreEqual("G0", j1.Data.GameID);
+            Response j2 = client.DoMethodAsync("POST", "games", P2).Result;
+            Assert.AreEqual(OK, j2.Status);
+        }
+
+
+
+
+
     }
 }
 

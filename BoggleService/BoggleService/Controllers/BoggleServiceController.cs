@@ -206,7 +206,7 @@ namespace BoggleService.Controllers
         {
             // Check for all of the possible errors that could occur according to the API
             string UserToken = request.UserToken;
-            string Word = request.Word;
+            string Word = request.Word.ToUpper();
             Game currentGame;
             if (Word == null)
             {

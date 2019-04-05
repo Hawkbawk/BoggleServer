@@ -7,7 +7,7 @@ namespace BoggleService.Models
     /// 
     /// </summary>
     [DataContract]
-    public class WordAndScore : IComparable
+    public class WordAndScore : IEquatable<WordAndScore>
     {
         /// <summary>
         /// 
@@ -20,11 +20,9 @@ namespace BoggleService.Models
         [DataMember(EmitDefaultValue = false)]
         public int Score;
 
-        public int CompareTo(object obj)
+        public bool Equals(WordAndScore other)
         {
-            WordAndScore cmp = obj as WordAndScore;
-            return Word.CompareTo(cmp.Word);
-            
+            return other.Word.Equals(Word);
         }
     }
 }
