@@ -11,6 +11,7 @@ namespace BoggleService.Controllers
 {
     /// <summary>
     /// 
+    /// 
     /// </summary>
     public class BoggleServiceController : ApiController
     {
