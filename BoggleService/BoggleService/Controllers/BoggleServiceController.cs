@@ -2,6 +2,8 @@
 using BoggleService.Models;
 using System;
 using System.Collections.Generic;
+using System.Configuration;
+using System.Data.SqlClient;
 using System.IO;
 using System.Net;
 using System.Threading;
@@ -43,12 +45,13 @@ namespace BoggleService.Controllers
         /// </summary>
         private static HashSet<string> dictionary = new HashSet<string>();
 
-
+        private static string DBConnection;
         /// <summary>
         /// Fills up the dictionary with all of the valid words that can be played in a Boggle game.
         /// </summary>
         static BoggleServiceController()
         {
+            DBConnection = ConfigurationManager.ConnectionStrings["BoggleService"].ConnectionString;
             string[] text = File.ReadAllLines(AppDomain.CurrentDomain.BaseDirectory + "/dictionary.txt");
             foreach (string word in text)
             {
@@ -84,25 +87,32 @@ namespace BoggleService.Controllers
                 throw new HttpResponseException(HttpStatusCode.InternalServerError);
             }
             string currentUserToken;
-            lock (sync)
+
+            using (SqlConnection conn = new SqlConnection(DBConnection))
             {
-                // Generate the unique user token.
-                currentUserToken = Guid.NewGuid().ToString();
-
-                // Construct the user with the appropriate information.
-                User currentUser = new User()
+                conn.Open();
+                using (SqlTransaction trans = conn.BeginTransaction())
                 {
-                    UserToken = currentUserToken,
-                    Nickname = nickname,
-                    WordsPlayed = new List<WordAndScore>()
-                };
-                // Add them into our database.
-                Users.Add(currentUserToken, currentUser);
+                    using (SqlCommand command = 
+                        new SqlCommand("INSERT INTO Users (UserID, Nickname) values(@UserID, @Nickname)",
+                        conn,
+                        trans))
+                    {
+                        string userID = Guid.NewGuid().ToString();
+
+                        command.Parameters.AddWithValue("@UserID", userID);
+                        command.Parameters.AddWithValue("@Nickname", nickname.Trim());
+
+                        if (command.ExecuteNonQuery() != 1)
+                        {
+                            throw new DatabaseException("Query failed unexpectedly.");
+                        }
+
+                        trans.Commit();
+                        return userID;
+                    }
+                }
             }
-
-            return currentUserToken;
-
-
         }
 
         /// <summary>

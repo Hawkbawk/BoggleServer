@@ -484,6 +484,7 @@
         <member name="T:BoggleService.Controllers.BoggleServiceController">
             <summary>
             
+            
             </summary>
         </member>
         <member name="F:BoggleService.Controllers.BoggleServiceController.Users">
