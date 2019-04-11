@@ -86,14 +86,13 @@ namespace BoggleService.Controllers
             {
                 throw new HttpResponseException(HttpStatusCode.InternalServerError);
             }
-            string currentUserToken;
 
             using (SqlConnection conn = new SqlConnection(DBConnection))
             {
                 conn.Open();
                 using (SqlTransaction trans = conn.BeginTransaction())
                 {
-                    using (SqlCommand command = 
+                    using (SqlCommand command =
                         new SqlCommand("INSERT INTO Users (UserID, Nickname) values(@UserID, @Nickname)",
                         conn,
                         trans))
@@ -140,68 +139,113 @@ namespace BoggleService.Controllers
             {
                 throw new HttpResponseException(HttpStatusCode.Forbidden);
             }
-            lock (sync)
+
+            JoinGameResponse response;
+            using (SqlConnection conn = new SqlConnection(DBConnection))
             {
-                // If the user isn't registered, they can't join a game.
-                if (!Users.TryGetValue(join.UserToken, out currentUser))
+                conn.Open();
+                using (SqlTransaction trans = conn.BeginTransaction())
                 {
-                    throw new HttpResponseException(HttpStatusCode.Forbidden);
+                    using (SqlCommand cmd =
+                        new SqlCommand("SELECT UserID FROM Users WHERE UserID=@UserID",
+                        conn,
+                        trans))
+                    {
+                        cmd.Parameters.AddWithValue("@UserID", join.UserToken);
+                        using (SqlDataReader reader = cmd.ExecuteReader())
+                        {
+                            if (!reader.HasRows)
+                            {
+                                throw new HttpResponseException(HttpStatusCode.Forbidden);
+                            }
+                        }
+                    }
+                    using (SqlCommand cmd =
+                        new SqlCommand("SELECT GameID FROM Games WHERE Player1=@UserID",
+                        conn,
+                        trans))
+                    {
+                        cmd.Parameters.AddWithValue("@UserID", join.UserToken);
+                        using (SqlDataReader reader = cmd.ExecuteReader())
+                        {
+                            if (!reader.HasRows)
+                            {
+                                throw new HttpResponseException(HttpStatusCode.Conflict);
+                            }
+                        }
+                    }
+                    using (SqlCommand cmd =
+                        new SqlCommand("SELECT GameID, TimeLimit FROM Games WHERE Player2 IS NULL",
+                        conn,
+                        trans))
+                    {
+                        using (SqlDataReader reader = cmd.ExecuteReader())
+                        {
+                            if (!reader.HasRows)
+                            {
+                                using (SqlCommand startPending =
+                                    new SqlCommand("INSERT INTO Games (Player1, TimeLimit) VALUES (@Player1, @TimeLimit)",
+                                    conn,
+                                    trans))
+                                {
+                                    startPending.Parameters.AddWithValue("@Player1", join.UserToken);
+                                    startPending.Parameters.AddWithValue("@TimeLimit", join.TimeLimit);
+                                    if (startPending.ExecuteNonQuery() != 1)
+                                    {
+                                        throw new DatabaseException("Start pending game has failed unexpectedly");
+                                    }
+
+                                }
+                                using (SqlCommand getPending = new SqlCommand("SELECT GameID from Games WHERE Player2 IS NULL", conn, trans))
+                                {
+                                    using (SqlDataReader readPending = cmd.ExecuteReader())
+                                    {
+                                        if (!readPending.HasRows)
+                                        {
+                                            throw new DatabaseException("What on earth just happened. this shouldn't EVER happen.");
+                                        }
+                                        else
+                                        {
+                                            response = new JoinGameResponse
+                                            {
+                                                GameID = readPending.Read().ToString(),
+                                                IsPending = true
+                                            };
+                                        }
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                string GameID = reader.Read().ToString();
+                                int TimeLimit = Convert.ToInt32(reader.Read().ToString());
+                                using (SqlCommand startGame = 
+                                    new SqlCommand("UPDATE Games SET Player2 = @Player2, TimeLimit = @TimeLimit, Board = @Board, StartTime = @StartTime WHERE GameID = @GameID",
+                                    conn,
+                                    trans))
+                                {
+                                    TimeLimit = (TimeLimit + join.TimeLimit) / 2;
+                                    startGame.Parameters.AddWithValue("@Player2", join.UserToken);
+                                    startGame.Parameters.AddWithValue("@TimeLimit", TimeLimit);
+                                    startGame.Parameters.AddWithValue("@Board", new BoggleBoard().ToString());
+                                    startGame.Parameters.AddWithValue("@StartTime", DateTime.Now);
+                                    if (startGame.ExecuteNonQuery() != 1)
+                                    {
+                                        throw new DatabaseException("Failed to start game!");
+                                    }
+                                    response = new JoinGameResponse
+                                    {
+                                        GameID = GameID,
+                                        IsPending = false
+                                    };
+                                }
+                            }
+                        }
+                    }
                 }
-
-
-                // If the pending game doesn't have a player one, add this player as the first player.
-                JoinGameResponse response;
-                if (PendingGame.Player1 == null)
-                {
-                    PendingGame.Player1 = new User()
-                    {
-                        UserToken = currentUser.UserToken,
-                        Nickname = currentUser.Nickname,
-                        DesiredTimeLimit = join.TimeLimit,
-                        WordsPlayed = new List<WordAndScore>()
-                    };
-                    response = new JoinGameResponse()
-                    {
-                        GameID = "G" + CurrentGameNum,
-                        IsPending = true
-                    };
-                    PendingGame.GameID = response.GameID;
-
-                }
-                // Otherwise, add the user as Player 2 and start the game up.
-                else
-                {
-                    // Put the current user into the pending game as player 2.
-                    PendingGame.Player2 = new User()
-                    {
-                        UserToken = currentUser.UserToken,
-                        Nickname = currentUser.Nickname,
-                        DesiredTimeLimit = join.TimeLimit,
-                        WordsPlayed = new List<WordAndScore>()
-
-                    };
-                    // Construct the game as it's now active.
-                    PendingGame.GameState = "active";
-                    PendingGame.Board = new BoggleBoard().ToString();
-                    PendingGame.TimeLimit = (PendingGame.Player1.DesiredTimeLimit + PendingGame.Player2.DesiredTimeLimit) / 2;
-                    PendingGame.TimeLeft = PendingGame.TimeLimit;
-                    PendingGame.TimeStarted = DateTime.Now.TimeOfDay;
-
-                    // Add the pending game and then replace the PendingGame with an empty object.
-                    Games.Add("G" + CurrentGameNum, PendingGame);
-                    PendingGame = new Game();
-
-                    response = new JoinGameResponse()
-                    {
-                        GameID = "G" + CurrentGameNum++,
-                        IsPending = false
-                    };
-
-                }
-                // Return the response that we previously constructed.
-                return response;
             }
 
+            return response;
         }
 
         /// <summary>
