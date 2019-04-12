@@ -184,12 +184,13 @@ namespace BoggleService.Controllers
                             if (!reader.HasRows)
                             {
                                 using (SqlCommand startPending =
-                                    new SqlCommand("INSERT INTO Games (Player1, TimeLimit) VALUES (@Player1, @TimeLimit)",
+                                    new SqlCommand("INSERT INTO Games (Player1, TimeLimit, GameStatus) VALUES (@Player1, @TimeLimit, @GameStatus)",
                                     conn,
                                     trans))
                                 {
                                     startPending.Parameters.AddWithValue("@Player1", join.UserToken);
                                     startPending.Parameters.AddWithValue("@TimeLimit", join.TimeLimit);
+                                    startPending.Parameters.AddWithValue("@GameStatus", "pending");
                                     if (startPending.ExecuteNonQuery() != 1)
                                     {
                                         throw new DatabaseException("Start pending game has failed unexpectedly");
@@ -219,8 +220,8 @@ namespace BoggleService.Controllers
                             {
                                 string GameID = reader.Read().ToString();
                                 int TimeLimit = Convert.ToInt32(reader.Read().ToString());
-                                using (SqlCommand startGame = 
-                                    new SqlCommand("UPDATE Games SET Player2 = @Player2, TimeLimit = @TimeLimit, Board = @Board, StartTime = @StartTime WHERE GameID = @GameID",
+                                using (SqlCommand startGame =
+                                    new SqlCommand("UPDATE Games SET Player2 = @Player2, TimeLimit = @TimeLimit, Board = @Board, StartTime = @StartTime, GameStatus = @GameStatus WHERE GameID = @GameID",
                                     conn,
                                     trans))
                                 {
@@ -229,6 +230,7 @@ namespace BoggleService.Controllers
                                     startGame.Parameters.AddWithValue("@TimeLimit", TimeLimit);
                                     startGame.Parameters.AddWithValue("@Board", new BoggleBoard().ToString());
                                     startGame.Parameters.AddWithValue("@StartTime", DateTime.Now);
+                                    startGame.Parameters.AddWithValue("@GameStatus", "active");
                                     if (startGame.ExecuteNonQuery() != 1)
                                     {
                                         throw new DatabaseException("Failed to start game!");
@@ -290,7 +292,7 @@ namespace BoggleService.Controllers
                     using (SqlCommand cmd = new SqlCommand("DELETE FROM Games WHERE Player1 = @UserID", conn, trans))
                     {
                         cmd.Parameters.AddWithValue("@UserID", UserToken);
-                        if(cmd.ExecuteNonQuery() != 1)
+                        if (cmd.ExecuteNonQuery() != 1)
                         {
                             throw new DatabaseException("You should never hit this you twig. but if you do, its line 295.");
                         }
@@ -320,6 +322,9 @@ namespace BoggleService.Controllers
             string UserToken = request.UserToken;
             string Word = request.Word.ToUpper();
             Game currentGame;
+            BoggleBoard currentBoard;
+            bool isAPlayer = false;
+            bool arePlayerOne = false;
             // Can't have a null word.
             if (Word == null)
             {
@@ -330,88 +335,245 @@ namespace BoggleService.Controllers
             {
                 throw new HttpResponseException(HttpStatusCode.Forbidden);
             }
-            // If the game doesn't exist or the user, then throw.
-            else if (!Games.TryGetValue(gameID, out currentGame) || !Users.TryGetValue(UserToken, out User temp))
-            {
-                throw new HttpResponseException(HttpStatusCode.Forbidden);
-            }
-            // You can't play a word in a pending game or a game that isn't active.
-            else if ((PendingGame.GameID != null && PendingGame.GameID.Equals(gameID)) || currentGame.GameState != "active")
-            {
-                throw new HttpResponseException(HttpStatusCode.Conflict);
-            }
-            // If the user isn't a player in the game, they can't play a word in the game.
-            else if (!currentGame.Player1.UserToken.Equals(UserToken) && !currentGame.Player2.UserToken.Equals(UserToken))
-            {
-                throw new HttpResponseException(HttpStatusCode.Forbidden);
-            }
-            // Otherwise, play the word in the game and return it's score.
-            BoggleBoard currentBoard = new BoggleBoard(Games[gameID].Board);
-            WordAndScore wordBeingPlayed = new WordAndScore()
-            {
-                Word = Word
-            };
-            // If the word isn't in the dictionary, or can't be played on the board, it's score
-            // should be negative one.
-            if ((Word.Length > 2 && !dictionary.Contains(Word)) || !currentBoard.CanBeFormed(Word))
-            {
-                wordBeingPlayed.Score = -1;
-            }
-            else
-            {
-                // Otherwise, assign a point value to the word based on its length.
-                switch (Word.Length)
-                {
-                    case 1:
-                    case 2:
-                        wordBeingPlayed.Score = 0;
-                        break;
-                    case 3:
-                    case 4:
-                        wordBeingPlayed.Score = 1;
-                        break;
-                    case 5:
-                        wordBeingPlayed.Score = 2;
-                        break;
-                    case 6:
-                        wordBeingPlayed.Score = 3;
-                        break;
-                    case 7:
-                        wordBeingPlayed.Score = 5;
-                        break;
-                    default:
-                        wordBeingPlayed.Score = 11;
-                        break;
-                }
-            }
 
-            // Determine your player number.
-            bool arePlayerOne = DeterminePlayerNumber(currentGame, UserToken);
-            if (arePlayerOne)
+            using (SqlConnection conn = new SqlConnection(DBConnection))
             {
-                // If a player has already played the word, its point value should be zero.
-                if (currentGame.Player1.WordsPlayed.Contains(wordBeingPlayed))
+                conn.Open();
+                using (SqlTransaction trans = conn.BeginTransaction())
                 {
-                    wordBeingPlayed.Score = 0;
-                }
-                // Update the player's score and add it to the words that player has played.
-                currentGame.Player1.Score += wordBeingPlayed.Score;
-                currentGame.Player1.WordsPlayed.Add(wordBeingPlayed);
-            }
-            else
-            {
-                // If a player has already played the word, its point value should be zero.
+                    //Checks if the User is even registered in Users
+                    using (SqlCommand checkValidRegistration = new SqlCommand("SELECT Nickname from Users where UserID = @UserID", conn, trans))
+                    {
+                        checkValidRegistration.Parameters.AddWithValue("@UserID", UserToken);
+                        using (SqlDataReader readResult = checkValidRegistration.ExecuteReader())
+                        {
+                            if (!readResult.HasRows)
+                            {
+                                throw new HttpResponseException(HttpStatusCode.Forbidden);
+                            }
+                        }
+                    }
 
-                if (currentGame.Player2.WordsPlayed.Contains(wordBeingPlayed))
-                {
-                    wordBeingPlayed.Score = 0;
+                    //Checks if the UserID is Player1 in a game that matches the GameID
+                    using (SqlCommand checkValidGameUserPlayer1 = new SqlCommand("SELECT GameID from Games where Player1 = @UserID", conn, trans))
+                    {
+                        checkValidGameUserPlayer1.Parameters.AddWithValue("@UserID", UserToken);
+                        using (SqlDataReader readResult = checkValidGameUserPlayer1.ExecuteReader())
+                        {
+                            if (!readResult.HasRows)
+                            {
+                            }
+                            else if (readResult.Read().ToString().Equals(gameID))
+                            {
+                                isAPlayer = true;
+                                arePlayerOne = true;
+                            }
+                            else
+                            {
+                                throw new HttpResponseException(HttpStatusCode.Forbidden);
+                            }
+                        }
+                    }
+
+                    //Checks if the UserID is Player2 in a game that matches the GameID
+                    using (SqlCommand checkValidGameUserPlayer2 = new SqlCommand("SELECT GameID from Games where Player2 = @UserID", conn, trans))
+                    {
+                        checkValidGameUserPlayer2.Parameters.AddWithValue("@UserID", UserToken);
+                        using (SqlDataReader readResult = checkValidGameUserPlayer2.ExecuteReader())
+                        {
+                            if (!readResult.HasRows)
+                            {
+                            }
+                            else if (readResult.Read().ToString().Equals(gameID))
+                            {
+                                isAPlayer = true;
+                                arePlayerOne = false;
+                            }
+                            else
+                            {
+                                throw new HttpResponseException(HttpStatusCode.Forbidden);
+                            }
+                        }
+                    }
+
+                    if (!isAPlayer)
+                    {
+                        throw new HttpResponseException(HttpStatusCode.Forbidden);      //Not sure if this is neccessary. @Ryan can you double check. Theres gotta be a better way to do this
+                    }
+
+                    //Gets the game status and checks if the user is in an active game
+                    using (SqlCommand checkValidActiveGameUser = new SqlCommand("SELECT GameStatus from Games where UserID = @UserID", conn, trans))
+                    {
+                        checkValidActiveGameUser.Parameters.AddWithValue("@UserID", UserToken);
+                        using (SqlDataReader readResult = checkValidActiveGameUser.ExecuteReader())
+                        {
+                            if (!readResult.HasRows)
+                            {
+                                throw new DatabaseException("It should never hit this since the last SQLCommand checked if the User was in a game. You messed up you twig.");
+                            }
+                            else if (!readResult.Read().ToString().Equals("active"))
+                            {
+                                throw new HttpResponseException(HttpStatusCode.Conflict);
+                            }
+                        }
+                    }
+
+                    //Gets the game's board
+                    using (SqlCommand getGameBoard = new SqlCommand("SELECT Board from Games where GameID = @GameID", conn, trans))
+                    {
+                        getGameBoard.Parameters.AddWithValue("@GameID", gameID);
+                        using (SqlDataReader readResult = getGameBoard.ExecuteReader())
+                        {
+                            if (!readResult.HasRows)
+                            {
+                                throw new DatabaseException("It should never hit this since the last SQLCommand checked if the User was in a game. You messed up you twig.");
+                            }
+                            else
+                            {
+                                currentBoard = new BoggleBoard(readResult.Read().ToString());
+                            }
+                        }
+                    }
+
+                    WordAndScore wordBeingPlayed = new WordAndScore()
+                    {
+                        Word = Word
+                    };
+
+                    // If the word isn't in the dictionary, or can't be played on the board, it's score
+                    // should be negative one.
+                    if ((Word.Length > 2 && !dictionary.Contains(Word)) || !currentBoard.CanBeFormed(Word))
+                    {
+                        wordBeingPlayed.Score = -1;
+                    }
+                    else
+                    {
+                        // Otherwise, assign a point value to the word based on its length.
+                        switch (Word.Length)
+                        {
+                            case 1:
+                            case 2:
+                                wordBeingPlayed.Score = 0;
+                                break;
+                            case 3:
+                            case 4:
+                                wordBeingPlayed.Score = 1;
+                                break;
+                            case 5:
+                                wordBeingPlayed.Score = 2;
+                                break;
+                            case 6:
+                                wordBeingPlayed.Score = 3;
+                                break;
+                            case 7:
+                                wordBeingPlayed.Score = 5;
+                                break;
+                            default:
+                                wordBeingPlayed.Score = 11;
+                                break;
+                        }
+                    }
+
+
+                    using (SqlCommand playWord =
+                                new SqlCommand("INSERT INTO Words (Word, GameID, Player, Score) VALUES (@Word, @GameID, @Player, @Score)",
+                                conn,
+                                trans))
+                    {
+                        playWord.Parameters.AddWithValue("@Word", wordBeingPlayed.Word);
+                        playWord.Parameters.AddWithValue("@GameID", gameID);
+                        playWord.Parameters.AddWithValue("@Player", UserToken);
+                        playWord.Parameters.AddWithValue("@Score", wordBeingPlayed.Score);
+                    }
+
+                    return wordBeingPlayed.Score;
                 }
-                // Update the player's score and add it to the words that player has played.
-                currentGame.Player2.Score += wordBeingPlayed.Score;
-                currentGame.Player2.WordsPlayed.Add(wordBeingPlayed);
-            }
-            // Return the score that the word had
-            return wordBeingPlayed.Score;
+            } 
+
+
+
+            //I'll leave the logic down here since we know this works.
+
+
+            //// If the game doesn't exist or the user, then throw.
+            //else if (!Games.TryGetValue(gameID, out currentGame) || !Users.TryGetValue(UserToken, out User temp))
+            //{
+            //    throw new HttpResponseException(HttpStatusCode.Forbidden);
+            //}
+            //// You can't play a word in a pending game or a game that isn't active.
+            //else if ((PendingGame.GameID != null && PendingGame.GameID.Equals(gameID)) || currentGame.GameState != "active")
+            //{
+            //    throw new HttpResponseException(HttpStatusCode.Conflict);
+            //}
+            //// If the user isn't a player in the game, they can't play a word in the game.
+            //else if (!currentGame.Player1.UserToken.Equals(UserToken) && !currentGame.Player2.UserToken.Equals(UserToken))
+            //{
+            //    throw new HttpResponseException(HttpStatusCode.Forbidden);
+            //}
+            //// Otherwise, play the word in the game and return it's score.
+            //BoggleBoard currentBoard = new BoggleBoard(Games[gameID].Board);
+
+            //// If the word isn't in the dictionary, or can't be played on the board, it's score
+            //// should be negative one.
+            //if ((Word.Length > 2 && !dictionary.Contains(Word)) || !currentBoard.CanBeFormed(Word))
+            //{
+            //    wordBeingPlayed.Score = -1;
+            //}
+            //else
+            //{
+            //    // Otherwise, assign a point value to the word based on its length.
+            //    switch (Word.Length)
+            //    {
+            //        case 1:
+            //        case 2:
+            //            wordBeingPlayed.Score = 0;
+            //            break;
+            //        case 3:
+            //        case 4:
+            //            wordBeingPlayed.Score = 1;
+            //            break;
+            //        case 5:
+            //            wordBeingPlayed.Score = 2;
+            //            break;
+            //        case 6:
+            //            wordBeingPlayed.Score = 3;
+            //            break;
+            //        case 7:
+            //            wordBeingPlayed.Score = 5;
+            //            break;
+            //        default:
+            //            wordBeingPlayed.Score = 11;
+            //            break;
+            //    }
+            //}
+
+            //// Determine your player number.
+            //bool arePlayerOne = DeterminePlayerNumber(currentGame, UserToken);
+            //if (arePlayerOne)
+            //{
+            //    // If a player has already played the word, its point value should be zero.
+            //    if (currentGame.Player1.WordsPlayed.Contains(wordBeingPlayed))
+            //    {
+            //        wordBeingPlayed.Score = 0;
+            //    }
+            //    // Update the player's score and add it to the words that player has played.
+            //    currentGame.Player1.Score += wordBeingPlayed.Score;
+            //    currentGame.Player1.WordsPlayed.Add(wordBeingPlayed);
+            //}
+            //else
+            //{
+            //    // If a player has already played the word, its point value should be zero.
+
+            //    if (currentGame.Player2.WordsPlayed.Contains(wordBeingPlayed))
+            //    {
+            //        wordBeingPlayed.Score = 0;
+            //    }
+            //    // Update the player's score and add it to the words that player has played.
+            //    currentGame.Player2.Score += wordBeingPlayed.Score;
+            //    currentGame.Player2.WordsPlayed.Add(wordBeingPlayed);
+            //}
+            //// Return the score that the word had
+            //return wordBeingPlayed.Score;
         }
 
         /// <summary>
