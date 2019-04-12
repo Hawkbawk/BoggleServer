@@ -370,7 +370,7 @@ namespace BoggleService.Controllers
                             }
                             else
                             {
-                                throw new HttpResponseException(HttpStatusCode.Forbidden);
+                                throw new DatabaseException("Line 373.. User is player 1 but the gameID doesnt match.. twig alert? ");    //I dont think it should hit this.
                             }
                         }
                     }
@@ -391,7 +391,7 @@ namespace BoggleService.Controllers
                             }
                             else
                             {
-                                throw new HttpResponseException(HttpStatusCode.Forbidden);
+                                throw new DatabaseException("Line 394.. User is player 2 but the gameID doesnt match.. twig alert? ");    //I dont think it should hit this.
                             }
                         }
                     }
