@@ -202,7 +202,7 @@ namespace BoggleService.Controllers
                                     {
                                         if (!readPending.HasRows)
                                         {
-                                            throw new DatabaseException("What on earth just happened. this shouldn't EVER happen.");
+                                            throw new DatabaseException("What on earth just happened. this shouldn't EVER happen. line 205 just for reference, you twig.");
                                         }
                                         else
                                         {
@@ -261,23 +261,42 @@ namespace BoggleService.Controllers
         [Route("BoggleService/games")]
         public void PutCancelJoin([FromBody]string UserToken)
         {
-            lock (sync)
+            using (SqlConnection conn = new SqlConnection(DBConnection))
             {
-                // If the user doesn't exist, they can't cancel a request.
-                if (!Users.TryGetValue(UserToken, out User currentUser))
+                conn.Open();
+                using (SqlTransaction trans = conn.BeginTransaction())
                 {
-                    throw new HttpResponseException(HttpStatusCode.Forbidden);
+                    using (SqlCommand checkValidUser = new SqlCommand("SELECT UserID from Users where UserID = @UserToken", conn, trans))
+                    {
+                        using (SqlDataReader readResult = checkValidUser.ExecuteReader())
+                        {
+                            if (!readResult.HasRows)
+                            {
+                                throw new HttpResponseException(HttpStatusCode.Forbidden);
+                            }
+                        }
+                    }
+                    using (SqlCommand checkPendingUser = new SqlCommand("SELECT GameID from Games WHERE Player2 IS NULL AND Player1 = @Player1", conn, trans))
+                    {
+                        checkPendingUser.Parameters.AddWithValue("@Player1", UserToken);
+                        using (SqlDataReader readResult = checkPendingUser.ExecuteReader())
+                        {
+                            if (!readResult.HasRows)
+                            {
+                                throw new HttpResponseException(HttpStatusCode.Forbidden);
+                            }
+                        }
+                    }
+                    using (SqlCommand cmd = new SqlCommand("DELETE FROM Games WHERE Player1 = @UserID", conn, trans))
+                    {
+                        cmd.Parameters.AddWithValue("@UserID", UserToken);
+                        if(cmd.ExecuteNonQuery() != 1)
+                        {
+                            throw new DatabaseException("You should never hit this you twig. but if you do, its line 295.");
+                        }
+                    }
                 }
-                // If the player isn't in a pending game, then they can't cancel a pending request.
-                else if (PendingGame.Player1.UserToken != null && !PendingGame.Player1.UserToken.Equals(UserToken))
-                {
-                    throw new HttpResponseException(HttpStatusCode.Forbidden);
-                }
-
-                // Otherwise, set the pending game's first player to null.
-                PendingGame.Player1 = null;
             }
-
         }
 
         /// <summary>
