@@ -133,7 +133,6 @@ namespace BoggleService.Controllers
         [Route("BoggleService/games")]
         public JoinGameResponse PostJoinGame([FromBody]JoinGameRequest join)
         {
-            User currentUser;
             // Time limits can't be too long or too short.
             if (join.TimeLimit < 5 || join.TimeLimit > 120)
             {
@@ -209,7 +208,7 @@ namespace BoggleService.Controllers
                                         {
                                             response = new JoinGameResponse
                                             {
-                                                GameID = readPending.Read().ToString(),
+                                                GameID = readPending.GetString(0),
                                                 IsPending = true
                                             };
                                         }
@@ -218,8 +217,8 @@ namespace BoggleService.Controllers
                             }
                             else
                             {
-                                string GameID = reader.Read().ToString();
-                                int TimeLimit = Convert.ToInt32(reader.Read().ToString());
+                                string GameID = reader.GetString(0);
+                                int TimeLimit = reader.GetInt32(1);
                                 using (SqlCommand startGame =
                                     new SqlCommand("UPDATE Games SET Player2 = @Player2, TimeLimit = @TimeLimit, Board = @Board, StartTime = @StartTime, GameStatus = @GameStatus WHERE GameID = @GameID",
                                     conn,
@@ -244,9 +243,9 @@ namespace BoggleService.Controllers
                             }
                         }
                     }
+                    trans.Commit();
                 }
             }
-
             return response;
         }
 
@@ -298,6 +297,7 @@ namespace BoggleService.Controllers
                             throw new DatabaseException("You should never hit this you twig. but if you do, its line 295.");
                         }
                     }
+                    trans.Commit();
                 }
             }
         }
@@ -322,7 +322,6 @@ namespace BoggleService.Controllers
             // Check for all of the possible errors that could occur according to the API
             string UserToken = request.UserToken;
             string Word = request.Word.ToUpper();
-            Game currentGame;
             BoggleBoard currentBoard;
             bool isAPlayer = false;
             bool arePlayerOne = false;
@@ -364,7 +363,7 @@ namespace BoggleService.Controllers
                             if (!readResult.HasRows)
                             {
                             }
-                            else if (readResult.Read().ToString().Equals(gameID))
+                            else if (readResult.GetString(0).Equals(gameID))
                             {
                                 isAPlayer = true;
                                 arePlayerOne = true;
@@ -385,7 +384,7 @@ namespace BoggleService.Controllers
                             if (!readResult.HasRows)
                             {
                             }
-                            else if (readResult.Read().ToString().Equals(gameID))
+                            else if (readResult.GetString(0).Equals(gameID))
                             {
                                 isAPlayer = true;
                                 arePlayerOne = false;
@@ -411,11 +410,12 @@ namespace BoggleService.Controllers
                             checkValidActiveGameUser.Parameters.AddWithValue("@Player1", UserToken);
                             using (SqlDataReader readResult = checkValidActiveGameUser.ExecuteReader())
                             {
+                                // TODO: Remove extra if statement after testing.
                                 if (!readResult.HasRows)
                                 {
                                     throw new DatabaseException("It should never hit this since the last SQLCommand checked if the User was in a game. You messed up you twig.");
                                 }
-                                else if (!readResult.Read().ToString().Equals("active"))
+                                else if (!readResult.GetString(0).Equals("active"))
                                 {
                                     throw new HttpResponseException(HttpStatusCode.Conflict);
                                 }
@@ -434,7 +434,7 @@ namespace BoggleService.Controllers
                                 {
                                     throw new DatabaseException("It should never hit this since the last SQLCommand checked if the User was in a game. You messed up you twig.");
                                 }
-                                else if (!readResult.Read().ToString().Equals("active"))
+                                else if (!readResult.GetString(0).Equals("active"))
                                 {
                                     throw new HttpResponseException(HttpStatusCode.Conflict);
                                 }
@@ -454,7 +454,7 @@ namespace BoggleService.Controllers
                             }
                             else
                             {
-                                currentBoard = new BoggleBoard(readResult.Read().ToString());
+                                currentBoard = new BoggleBoard(readResult.GetString(0));
                             }
                         }
                     }
@@ -466,7 +466,8 @@ namespace BoggleService.Controllers
 
                     // If the word isn't in the dictionary, or can't be played on the board, it's score
                     // should be negative one.
-                    if ((Word.Length > 2 && !dictionary.Contains(Word)) || !currentBoard.CanBeFormed(Word))
+                    // TODO: POSSIBLE SCORING BUG. KEEP AN EYE ON IT
+                    if (Word.Length > 2 && (!dictionary.Contains(Word)) || !currentBoard.CanBeFormed(Word))
                     {
                         wordBeingPlayed.Score = -1;
                     }
@@ -509,107 +510,10 @@ namespace BoggleService.Controllers
                         playWord.Parameters.AddWithValue("@Player", UserToken);
                         playWord.Parameters.AddWithValue("@Score", wordBeingPlayed.Score);
                     }
-
+                    trans.Commit();
                     return wordBeingPlayed.Score;
                 }
-            } 
-
-
-
-            //I'll leave the logic down here since we know this works.
-
-
-            //// If the game doesn't exist or the user, then throw.
-            //else if (!Games.TryGetValue(gameID, out currentGame) || !Users.TryGetValue(UserToken, out User temp))
-            //{
-            //    throw new HttpResponseException(HttpStatusCode.Forbidden);
-            //}
-            //// You can't play a word in a pending game or a game that isn't active.
-            //else if ((PendingGame.GameID != null && PendingGame.GameID.Equals(gameID)) || currentGame.GameState != "active")
-            //{
-            //    throw new HttpResponseException(HttpStatusCode.Conflict);
-            //}
-            //// If the user isn't a player in the game, they can't play a word in the game.
-            //else if (!currentGame.Player1.UserToken.Equals(UserToken) && !currentGame.Player2.UserToken.Equals(UserToken))
-            //{
-            //    throw new HttpResponseException(HttpStatusCode.Forbidden);
-            //}
-            //// Otherwise, play the word in the game and return it's score.
-            //BoggleBoard currentBoard = new BoggleBoard(Games[gameID].Board);
-
-            //// If the word isn't in the dictionary, or can't be played on the board, it's score
-            //// should be negative one.
-            //if ((Word.Length > 2 && !dictionary.Contains(Word)) || !currentBoard.CanBeFormed(Word))
-            //{
-            //    wordBeingPlayed.Score = -1;
-            //}
-            //else
-            //{
-            //    // Otherwise, assign a point value to the word based on its length.
-            //    switch (Word.Length)
-            //    {
-            //        case 1:
-            //        case 2:
-            //            wordBeingPlayed.Score = 0;
-            //            break;
-            //        case 3:
-            //        case 4:
-            //            wordBeingPlayed.Score = 1;
-            //            break;
-            //        case 5:
-            //            wordBeingPlayed.Score = 2;
-            //            break;
-            //        case 6:
-            //            wordBeingPlayed.Score = 3;
-            //            break;
-            //        case 7:
-            //            wordBeingPlayed.Score = 5;
-            //            break;
-            //        default:
-            //            wordBeingPlayed.Score = 11;
-            //            break;
-            //    }
-            //}
-
-            //// Determine your player number.
-            //bool arePlayerOne = DeterminePlayerNumber(currentGame, UserToken);
-            //if (arePlayerOne)
-            //{
-            //    // If a player has already played the word, its point value should be zero.
-            //    if (currentGame.Player1.WordsPlayed.Contains(wordBeingPlayed))
-            //    {
-            //        wordBeingPlayed.Score = 0;
-            //    }
-            //    // Update the player's score and add it to the words that player has played.
-            //    currentGame.Player1.Score += wordBeingPlayed.Score;
-            //    currentGame.Player1.WordsPlayed.Add(wordBeingPlayed);
-            //}
-            //else
-            //{
-            //    // If a player has already played the word, its point value should be zero.
-
-            //    if (currentGame.Player2.WordsPlayed.Contains(wordBeingPlayed))
-            //    {
-            //        wordBeingPlayed.Score = 0;
-            //    }
-            //    // Update the player's score and add it to the words that player has played.
-            //    currentGame.Player2.Score += wordBeingPlayed.Score;
-            //    currentGame.Player2.WordsPlayed.Add(wordBeingPlayed);
-            //}
-            //// Return the score that the word had
-            //return wordBeingPlayed.Score;
-        }
-
-        /// <summary>
-        /// Determines if the player with the specified user token is the first player in the
-        /// specified game. Assumes that the player is one of the player's in the game in the first place.
-        /// </summary>
-        /// <param name="game">The game the player is in</param>
-        /// <param name="userToken">The player's user token</param>
-        /// <returns></returns>
-        private bool DeterminePlayerNumber(Game game, string userToken)
-        {
-            return game.Player1.UserToken.Equals(userToken);
+            }
         }
 
         /// <summary>
@@ -625,136 +529,264 @@ namespace BoggleService.Controllers
         [Route("BoggleService/games/{gameID}/{brief}")]
         public Game GetGameStatus(string gameID, bool brief)
         {
-            Game currentGame;
-            Game response;
-            lock (sync)
+            string gameStatus = "";
+            Game response = new Game();
+            response.Player1 = new User();
+            response.Player2 = new User();
+
+            using (SqlConnection conn = new SqlConnection(DBConnection))
             {
-                // If the game is pending, they will always get the same response.
-                // If the game is active and they want a brief response, do the following.
-                if (PendingGame.GameID != null && PendingGame.GameID.Equals(gameID))
+                conn.Open();
+                using (SqlTransaction trans = conn.BeginTransaction())
                 {
-                    response = new Game()
+                    using (SqlCommand checkValidGameID = new SqlCommand("SELECT GameStatus FROM Games where GameID = @GameID", conn, trans))
                     {
-                        GameState = "pending"
-                    };
-                    return response;
-                }
-                // If the game isn't pending and isn't on our list, return a Forbidden code.
-                else if (!Games.TryGetValue(gameID, out currentGame))
-                {
-                    throw new HttpResponseException(HttpStatusCode.Forbidden);
-                }
-                // Determine the game state based on the amount of time left
-                if (ComputeTimeLeft(currentGame) <= 0)
-                {
-                    currentGame.GameState = "completed";
-                    currentGame.TimeLeft = 0;
-                }
-                // Now determine what our appropriate response should be.
-                if (currentGame.GameState.Equals("active") && brief)
-                {
-                    // Copy over the state of the game.
-                    response = new Game()
+                        checkValidGameID.Parameters.AddWithValue("@GameID", gameID);
+                        using (SqlDataReader reader = checkValidGameID.ExecuteReader())
+                        {
+                            if (!reader.HasRows)
+                            {
+                                throw new HttpResponseException(HttpStatusCode.Forbidden);
+                            }
+                            else
+                            {
+                                gameStatus = reader.GetString(0);
+                            }
+                        }
+                    }
+
+                    // Pending game's are easy. You literally just return a 
+                    // Game object with the state set to pending.
+
+                    if (gameStatus.Equals("pending"))
                     {
-                        GameState = "active",
-                        TimeLeft = ComputeTimeLeft(currentGame),
-                        Player1 = DeepCopyUser(currentGame.Player1),
-                        Player2 = DeepCopyUser(currentGame.Player2)
-                    };
-
-
-                    // Set all of the player info except for their score to null, so that it doesn't get serialized
-                    response.Player1.Nickname = null;
-                    response.Player1.WordsPlayed = null;
-
-                    response.Player2.Nickname = null;
-                    response.Player2.WordsPlayed = null;
-                }
-                // If the game is completed and they want a brief status, do the following.
-                else if (currentGame.GameState.Equals("completed") && brief)
-                {
-                    // Copy over the state of the game.
-                    response = new Game
+                        response = new Game()
+                        {
+                            GameState = "pending"
+                        };
+                    }
+                    // Otherwise, we need to check all for all of the 
+                    // corresponding game states and brief combinations.
+                    else if (gameStatus.Equals("active") && brief)
                     {
-                        GameState = "completed",
-                        Player1 = DeepCopyUser(currentGame.Player1),
-                        Player2 = DeepCopyUser(currentGame.Player2)
 
-                    };
+                        // Obtain the information needed for a response for a brief response
+                        // and an active game.
+                        using (SqlCommand briefActiveResponse = new SqlCommand("SELECT TimeStarted, TimeLimit, Player1, Player2 FROM Games WHERE GameID = @GameID",
+                            conn,
+                            trans))
+                        {
+                            briefActiveResponse.Parameters.AddWithValue("@GameID", gameID);
+                            using (SqlDataReader reader = briefActiveResponse.ExecuteReader())
+                            {
+                                response.GameState = "active";
+                                response.TimeLeft = computeTimeLeft(reader.GetDateTime(0), reader.GetInt32(1));
+                                response.Player1.UserToken = reader.GetString(2);
+                                response.Player2.UserToken = reader.GetString(3);
+                            }
+                        }
 
-                    // Change all of the data in the response so when serialized it matches the brief response for a completed game.
-                    response.Player1.Nickname = null;
-                    response.Player1.WordsPlayed = null;
 
-                    response.Player2.Nickname = null;
-                    response.Player2.WordsPlayed = null;
-                }
-                // If the game is active and they want a complete response, do the following.
-                else if (currentGame.GameState.Equals("active"))
-                {
-                    // Copy over the state of the current game, and deep copy the users.
-                    response = new Game()
+                        // Find all of player one's words played in the 
+                        // current game, add their scores together, and put that into player one's total score.
+                        using (SqlCommand buildPlayerOne = 
+                            new SqlCommand("SELECT Score FROM Words WHERE GameID = @GameID AND Player = @Player1",
+                            conn,
+                            trans))
+                        {
+                            buildPlayerOne.Parameters.AddWithValue("@GameID", gameID);
+                            buildPlayerOne.Parameters.AddWithValue("@Player1", response.Player1.UserToken);
+                            using (SqlDataReader playerOneWords = buildPlayerOne.ExecuteReader())
+                            {
+                                while (playerOneWords.Read())
+                                {
+                                    response.Player1.Score += playerOneWords.GetInt32(0);
+                                }
+                            }
+                        }
+
+
+                        // Find all of player two's words played in the 
+                        // current game, add their scores together, and put that into player two's total score.
+                        using (SqlCommand buildPlayerTwo =
+                            new SqlCommand("SELECT Score FROM Words WHERE GameID = @GameID AND Player = @Player2",
+                            conn,
+                            trans))
+                        {
+                            buildPlayerTwo.Parameters.AddWithValue("@GameID", gameID);
+                            buildPlayerTwo.Parameters.AddWithValue("@Player2", response.Player2.UserToken);
+                            using (SqlDataReader playerTwoWords = buildPlayerTwo.ExecuteReader())
+                            {
+                                while (playerTwoWords.Read())
+                                {
+                                    response.Player1.Score += playerTwoWords.GetInt32(0);
+                                }
+                            }
+                        }
+                        // Jump to the bottom and then return.
+                    }
+                    else if (gameStatus.Equals("completed") && brief)
                     {
-                        GameState = "active",
-                        Board = currentGame.Board,
-                        TimeLimit = currentGame.TimeLimit,
-                        TimeLeft = ComputeTimeLeft(currentGame),
-                        Player1 = DeepCopyUser(currentGame.Player1),
-                        Player2 = DeepCopyUser(currentGame.Player2)
-                    };
 
-                    // For an active game, you don't want to serialize the words that the player
-                    // played, so set them to null.
-                    response.Player1.WordsPlayed = null;
-                    response.Player2.WordsPlayed = null;
-
-                }
-                else
-                {
-                    // Copy over the state of the game, and deep copy over the players.
-                    response = new Game()
+                    }
+                    else if (gameStatus.Equals("active"))
                     {
-                        GameState = "completed",
-                        Board = currentGame.Board,
-                        TimeLimit = currentGame.TimeLimit,
-                        TimeLeft = ComputeTimeLeft(currentGame),
-                        Player1 = DeepCopyUser(currentGame.Player1),
-                        Player2 = DeepCopyUser(currentGame.Player2)
-                    };
+
+                    }
+                    else
+                    {
+
+                    }
+
+
+
+
+
+
+
+
                 }
-                return response;
             }
-        }
-        /// <summary>
-        /// Creates a deep copy of the passed in user.
-        /// </summary>
-        /// <param name="player">The user to be copied</param>
-        /// <returns>A deep copy of the passed in user</returns>
-        private User DeepCopyUser(User player)
-        {
-            User clone = new User()
-            {
-                UserToken = player.UserToken,
-                Nickname = player.Nickname,
-                Score = player.Score,
-                WordsPlayed = new List<WordAndScore>(player.WordsPlayed)
-            };
 
-            return clone;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+            //Game currentGame;
+            //Game response;
+            //lock (sync)
+            //{
+            //    // If the game is pending, they will always get the same response.
+            //    // If the game is active and they want a brief response, do the following.
+            //    if (PendingGame.GameID != null && PendingGame.GameID.Equals(gameID))
+            //    {
+            //        response = new Game()
+            //        {
+            //            GameState = "pending"
+            //        };
+            //        return response;
+            //    }
+            //    // If the game isn't pending and isn't on our list, return a Forbidden code.
+            //    else if (!Games.TryGetValue(gameID, out currentGame))
+            //    {
+            //        throw new HttpResponseException(HttpStatusCode.Forbidden);
+            //    }
+            //    // Determine the game state based on the amount of time left
+            //    if (ComputeTimeLeft(currentGame) <= 0)
+            //    {
+            //        currentGame.GameState = "completed";
+            //        currentGame.TimeLeft = 0;
+            //    }
+            //    // Now determine what our appropriate response should be.
+            //    if (currentGame.GameState.Equals("active") && brief)
+            //    {
+            //        // Copy over the state of the game.
+            //        response = new Game()
+            //        {
+            //            GameState = "active",
+            //            TimeLeft = ComputeTimeLeft(currentGame),
+            //            Player1 = DeepCopyUser(currentGame.Player1),
+            //            Player2 = DeepCopyUser(currentGame.Player2)
+            //        };
+
+
+            //        // Set all of the player info except for their score to null, so that it doesn't get serialized
+            //        response.Player1.Nickname = null;
+            //        response.Player1.WordsPlayed = null;
+
+            //        response.Player2.Nickname = null;
+            //        response.Player2.WordsPlayed = null;
+            //    }
+            //    // If the game is completed and they want a brief status, do the following.
+            //    else if (currentGame.GameState.Equals("completed") && brief)
+            //    {
+            //        // Copy over the state of the game.
+            //        response = new Game
+            //        {
+            //            GameState = "completed",
+            //            Player1 = DeepCopyUser(currentGame.Player1),
+            //            Player2 = DeepCopyUser(currentGame.Player2)
+
+            //        };
+
+            //        // Change all of the data in the response so when serialized it matches the brief response for a completed game.
+            //        response.Player1.Nickname = null;
+            //        response.Player1.WordsPlayed = null;
+
+            //        response.Player2.Nickname = null;
+            //        response.Player2.WordsPlayed = null;
+            //    }
+            //    // If the game is active and they want a complete response, do the following.
+            //    else if (currentGame.GameState.Equals("active"))
+            //    {
+            //        // Copy over the state of the current game, and deep copy the users.
+            //        response = new Game()
+            //        {
+            //            GameState = "active",
+            //            Board = currentGame.Board,
+            //            TimeLimit = currentGame.TimeLimit,
+            //            TimeLeft = ComputeTimeLeft(currentGame),
+            //            Player1 = DeepCopyUser(currentGame.Player1),
+            //            Player2 = DeepCopyUser(currentGame.Player2)
+            //        };
+
+            //        // For an active game, you don't want to serialize the words that the player
+            //        // played, so set them to null.
+            //        response.Player1.WordsPlayed = null;
+            //        response.Player2.WordsPlayed = null;
+
+            //    }
+            //    else
+            //    {
+            //        // Copy over the state of the game, and deep copy over the players.
+            //        response = new Game()
+            //        {
+            //            GameState = "completed",
+            //            Board = currentGame.Board,
+            //            TimeLimit = currentGame.TimeLimit,
+            //            TimeLeft = ComputeTimeLeft(currentGame),
+            //            Player1 = DeepCopyUser(currentGame.Player1),
+            //            Player2 = DeepCopyUser(currentGame.Player2)
+            //        };
+            //    }
+            //    return response;
+            //}
+
+            return response;
         }
-        /// <summary>
-        /// Computes the time left in a game by subtracting the current time of day from the sum of
-        /// the time limit for the game and when that game started.
-        /// </summary>
-        /// <param name="g">The game who's time limit will be checked</param>
-        /// <returns>
-        /// The amount of time left in the game. Negative values indicate the game is over.
-        /// </returns>
-        private int ComputeTimeLeft(Game g)
+
+        private int computeTimeLeft(DateTime timeStarted, int timelimit)
         {
-            return (int)(g.TimeStarted.TotalSeconds + g.TimeLimit)
-                      - (int)(DateTime.Now.TimeOfDay.TotalSeconds);
+            return (int)timeStarted.AddSeconds(timelimit).Subtract(DateTime.Now).TotalSeconds;
+
+
+
+
+
+            return 0;
         }
     }
+
+
+
+
+
+
+
+
 
 }
