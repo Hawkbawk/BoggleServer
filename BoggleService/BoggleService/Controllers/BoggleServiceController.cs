@@ -401,19 +401,42 @@ namespace BoggleService.Controllers
                         throw new HttpResponseException(HttpStatusCode.Forbidden);      //Not sure if this is neccessary. @Ryan can you double check. Theres gotta be a better way to do this
                     }
 
-                    //Gets the game status and checks if the user is in an active game
-                    using (SqlCommand checkValidActiveGameUser = new SqlCommand("SELECT GameStatus from Games where UserID = @UserID", conn, trans))
+
+                    if (arePlayerOne)
                     {
-                        checkValidActiveGameUser.Parameters.AddWithValue("@UserID", UserToken);
-                        using (SqlDataReader readResult = checkValidActiveGameUser.ExecuteReader())
+                        //Gets the game status and checks if the user is in an active game
+                        using (SqlCommand checkValidActiveGameUser = new SqlCommand("SELECT GameStatus from Games where Player1 = @Player1", conn, trans))
                         {
-                            if (!readResult.HasRows)
+                            checkValidActiveGameUser.Parameters.AddWithValue("@Player1", UserToken);
+                            using (SqlDataReader readResult = checkValidActiveGameUser.ExecuteReader())
                             {
-                                throw new DatabaseException("It should never hit this since the last SQLCommand checked if the User was in a game. You messed up you twig.");
+                                if (!readResult.HasRows)
+                                {
+                                    throw new DatabaseException("It should never hit this since the last SQLCommand checked if the User was in a game. You messed up you twig.");
+                                }
+                                else if (!readResult.Read().ToString().Equals("active"))
+                                {
+                                    throw new HttpResponseException(HttpStatusCode.Conflict);
+                                }
                             }
-                            else if (!readResult.Read().ToString().Equals("active"))
+                        }
+                    }
+                    else
+                    {
+                        //Gets the game status and checks if the user is in an active game
+                        using (SqlCommand checkValidActiveGameUser = new SqlCommand("SELECT GameStatus from Games where Player2 = @Player2", conn, trans))
+                        {
+                            checkValidActiveGameUser.Parameters.AddWithValue("@Player2", UserToken);
+                            using (SqlDataReader readResult = checkValidActiveGameUser.ExecuteReader())
                             {
-                                throw new HttpResponseException(HttpStatusCode.Conflict);
+                                if (!readResult.HasRows)
+                                {
+                                    throw new DatabaseException("It should never hit this since the last SQLCommand checked if the User was in a game. You messed up you twig.");
+                                }
+                                else if (!readResult.Read().ToString().Equals("active"))
+                                {
+                                    throw new HttpResponseException(HttpStatusCode.Conflict);
+                                }
                             }
                         }
                     }
