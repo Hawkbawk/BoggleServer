@@ -270,6 +270,7 @@ namespace BoggleService.Controllers
                 {
                     using (SqlCommand checkValidUser = new SqlCommand("SELECT UserID from Users where UserID = @UserToken", conn, trans))
                     {
+                        checkValidUser.Parameters.AddWithValue("@UserToken", UserToken);
                         using (SqlDataReader readResult = checkValidUser.ExecuteReader())
                         {
                             if (!readResult.HasRows)

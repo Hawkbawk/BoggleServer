@@ -620,6 +620,22 @@
             The amount of time left in the game. Negative values indicate the game is over.
             </returns>
         </member>
+        <member name="T:BoggleService.Models.DatabaseException">
+            <summary>
+            
+            </summary>
+        </member>
+        <member name="M:BoggleService.Models.DatabaseException.#ctor(System.String)">
+            <summary>
+            
+            </summary>
+            <param name="message"></param>
+        </member>
+        <member name="M:BoggleService.Models.DatabaseException.#ctor">
+            <summary>
+            
+            </summary>
+        </member>
         <member name="T:BoggleService.Models.Game">
             <summary>
             Represents the state of a BoggleGame.
