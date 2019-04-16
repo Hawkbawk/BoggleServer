@@ -225,7 +225,7 @@ namespace BoggleService.Controllers
                                     {
                                         response = new JoinGameResponse
                                         {
-                                            GameID = readPending.GetString(0),
+                                            GameID = "" + readPending.GetInt32(0),
                                             IsPending = true
                                         };
                                     }
@@ -237,7 +237,7 @@ namespace BoggleService.Controllers
                         // to that game and start the game.
                         else
                         {
-                            string GameID = reader.GetString(0);
+                            string GameID = "" + reader.GetInt32(0);
                             int TimeLimit = reader.GetInt32(1);
                             // Close the reader so we can do another SQL Query.
                             reader.Close();
@@ -253,6 +253,7 @@ namespace BoggleService.Controllers
                                 startGame.Parameters.AddWithValue("@TimeLimit", TimeLimit);
                                 startGame.Parameters.AddWithValue("@Board", new BoggleBoard().ToString());
                                 startGame.Parameters.AddWithValue("@StartTime", DateTime.Now);
+                                startGame.Parameters.AddWithValue("@GameID", GameID);
 
                                 // Execute the query.
                                 if (startGame.ExecuteNonQuery() != 1)
@@ -397,7 +398,7 @@ namespace BoggleService.Controllers
                         conn,
                         trans))
                     {
-                        checkUserInGame.Parameters.AddWithValue("@UserID", UserToken);
+                        checkUserInGame.Parameters.AddWithValue("@GameID", gameID);
                         using (SqlDataReader readResult = checkUserInGame.ExecuteReader())
                         {
                             while (readResult.Read())
@@ -423,6 +424,7 @@ namespace BoggleService.Controllers
                         conn,
                         trans))
                     {
+                        getGameStatus.Parameters.AddWithValue("@GameID", gameID);
                         using (SqlDataReader readGameStatus = getGameStatus.ExecuteReader())
                         {
                             readGameStatus.Read();
@@ -468,7 +470,7 @@ namespace BoggleService.Controllers
                     // If the word isn't in the dictionary, or can't be played on the board, it's score
                     // should be negative one.
                     // TODO: POSSIBLE SCORING BUG. KEEP AN EYE ON IT
-                    if (Word.Length > 2 && (!dictionary.Contains(Word)) || !currentBoard.CanBeFormed(Word))
+                    if (Word.Length > 2 && (!dictionary.Contains(Word) || !currentBoard.CanBeFormed(Word)))
                     {
                         wordBeingPlayed.Score = -1;
                     }
@@ -500,6 +502,20 @@ namespace BoggleService.Controllers
                         }
                     }
 
+                    // Tests to see if the user has already played this word in the current game.
+                    using (SqlCommand testIfPlayedWord = 
+                        new SqlCommand("SELECT Score FROM Words WHERE Player = @Player AND Word = @Word AND GameID = @GameID", 
+                        conn,
+                        trans))
+                    {
+                        testIfPlayedWord.Parameters.AddWithValue("@Player", UserToken);
+                        testIfPlayedWord.Parameters.AddWithValue("@Word", Word);
+                        testIfPlayedWord.Parameters.AddWithValue("@GameID", gameID);
+                        if (testIfPlayedWord.ExecuteScalar() != null)
+                        {
+                            wordBeingPlayed.Score = 0;
+                        }
+                    }
 
                     using (SqlCommand playWord =
                                 new SqlCommand("INSERT INTO Words (Word, GameID, Player, Score) VALUES (@Word, @GameID, @Player, @Score)",
@@ -510,6 +526,10 @@ namespace BoggleService.Controllers
                         playWord.Parameters.AddWithValue("@GameID", gameID);
                         playWord.Parameters.AddWithValue("@Player", UserToken);
                         playWord.Parameters.AddWithValue("@Score", wordBeingPlayed.Score);
+                        if (playWord.ExecuteNonQuery() != 1)
+                        {
+                            throw new DatabaseException("Failed to add the played word to the database.");
+                        }
                     }
                     trans.Commit();
                     return wordBeingPlayed.Score;
@@ -539,6 +559,13 @@ namespace BoggleService.Controllers
 
             string playerOne = "";
             string playerTwo = "";
+            try
+            {
+                Convert.ToInt32(gameID);
+            } catch (Exception e)
+            {
+                throw new HttpResponseException(HttpStatusCode.Forbidden);
+            }
 
             using (SqlConnection conn = new SqlConnection(DBConnection))
             {
@@ -564,18 +591,20 @@ namespace BoggleService.Controllers
 
                     // Determine if the game they are asking for is just a pending game.
                     using (SqlCommand checkPending =
-                        new SqlCommand("SELECT Player2 FROM Games WHERE GameID = @GameID",
+                        new SqlCommand("SELECT * FROM Games WHERE GameID = @GameID AND Player2 IS NULL",
                         conn,
                         trans))
                     {
                         checkPending.Parameters.AddWithValue("@GameID", gameID);
                         using (SqlDataReader readPending = checkPending.ExecuteReader())
                         {
-                            // Pending games don't have a second player.
+                            // If the reader has rows, that means the game didn't have a second
+                            // player, so the game is pending.
                             readPending.Read();
-                            if (!readPending.HasRows)
+                            if (readPending.HasRows)
                             {
                                 response.GameState = "pending";
+                                readPending.Close();
                                 trans.Commit();
                                 return response;
                             }
@@ -772,6 +801,8 @@ namespace BoggleService.Controllers
         }
         private void ObtainUsername(Game response, string Player1ID, string Player2ID, SqlConnection conn, SqlTransaction trans)
         {
+            // Gets the username for the first player.
+            // TODO: Throws an error here saying that we're attempting to read when there's no data to be read, even though the user should definitely exist.
             using (SqlCommand ObtainPlayerOneToken = new SqlCommand("SELECT Nickname from Users where UserID = @UserID", conn, trans))
             {
                 ObtainPlayerOneToken.Parameters.AddWithValue("@UserID", Player1ID);
@@ -782,10 +813,11 @@ namespace BoggleService.Controllers
                 }
             }
 
-            using (SqlCommand ObtainPlayerOneToken = new SqlCommand("SELECT Nickname from Users where UserID = @UserID", conn, trans))
+            // Gets the username for the second player.
+            using (SqlCommand ObtainPlayerTwoToken = new SqlCommand("SELECT Nickname from Users where UserID = @UserID", conn, trans))
             {
-                ObtainPlayerOneToken.Parameters.AddWithValue("@UserID", Player2ID);
-                using (SqlDataReader readNickname = ObtainPlayerOneToken.ExecuteReader())
+                ObtainPlayerTwoToken.Parameters.AddWithValue("@UserID", Player2ID);
+                using (SqlDataReader readNickname = ObtainPlayerTwoToken.ExecuteReader())
                 {
                     readNickname.Read();
                     response.Player2.Nickname = readNickname.GetString(0);
@@ -793,13 +825,4 @@ namespace BoggleService.Controllers
             }
         }
     }
-
-
-
-
-
-
-
-
-
 }
