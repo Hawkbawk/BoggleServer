@@ -10,12 +10,6 @@ namespace BoggleService.Models
     public class Game
     {
         /// <summary>
-        /// The ID of the game. Is never serialized.
-        /// </summary>
-        [IgnoreDataMember]
-        public string GameID;
-
-        /// <summary>
         /// The state of the game. Can be either "pending", "active", or "completed".
         /// </summary>
         [DataMember]
@@ -38,12 +32,6 @@ namespace BoggleService.Models
         /// </summary>
         [DataMember(EmitDefaultValue = false)]
         public int TimeLeft;
-
-        /// <summary>
-        /// The time that this game was started. Is never serialized.
-        /// </summary>
-        [IgnoreDataMember]
-        public TimeSpan TimeStarted;
 
         /// <summary>
         /// The first player in the game.
