@@ -149,6 +149,7 @@ namespace BoggleService.Controllers
                 conn.Open();
                 using (SqlTransaction trans = conn.BeginTransaction())
                 {
+                    // Test to see if the user is actually registered.
                     using (SqlCommand cmd =
                         new SqlCommand("SELECT UserID FROM Users WHERE UserID=@UserID",
                         conn,
@@ -157,99 +158,121 @@ namespace BoggleService.Controllers
                         cmd.Parameters.AddWithValue("@UserID", join.UserToken);
                         using (SqlDataReader reader = cmd.ExecuteReader())
                         {
+                            reader.Read();
                             if (!reader.HasRows)
                             {
                                 throw new HttpResponseException(HttpStatusCode.Forbidden);
                             }
                         }
                     }
+
+                    // Test to see if the player is already in a pending game.
                     using (SqlCommand cmd =
-                        new SqlCommand("SELECT GameID FROM Games WHERE Player1=@UserID",
+                        new SqlCommand("SELECT GameID FROM Games WHERE Player1=@UserID AND Player2 IS NULL",
                         conn,
                         trans))
                     {
                         cmd.Parameters.AddWithValue("@UserID", join.UserToken);
                         using (SqlDataReader reader = cmd.ExecuteReader())
                         {
-                            if (!reader.HasRows)
+                            // If the reader has rows, that means that the player is already in a pending game.
+                            reader.Read();
+                            if (reader.HasRows)
                             {
                                 throw new HttpResponseException(HttpStatusCode.Conflict);
                             }
                         }
                     }
+
+                    // Check for any already pending games.
                     using (SqlCommand cmd =
                         new SqlCommand("SELECT GameID, TimeLimit FROM Games WHERE Player2 IS NULL",
                         conn,
                         trans))
                     {
-                        using (SqlDataReader reader = cmd.ExecuteReader())
-                        {
-                            if (!reader.HasRows)
-                            {
-                                using (SqlCommand startPending =
-                                    new SqlCommand("INSERT INTO Games (Player1, TimeLimit, GameStatus) VALUES (@Player1, @TimeLimit, @GameStatus)",
-                                    conn,
-                                    trans))
-                                {
-                                    startPending.Parameters.AddWithValue("@Player1", join.UserToken);
-                                    startPending.Parameters.AddWithValue("@TimeLimit", join.TimeLimit);
-                                    startPending.Parameters.AddWithValue("@GameStatus", "pending");
-                                    if (startPending.ExecuteNonQuery() != 1)
-                                    {
-                                        throw new DatabaseException("Start pending game has failed unexpectedly");
-                                    }
+                        SqlDataReader reader = cmd.ExecuteReader();
 
-                                }
-                                using (SqlCommand getPending = new SqlCommand("SELECT GameID from Games WHERE Player2 IS NULL", conn, trans))
-                                {
-                                    using (SqlDataReader readPending = cmd.ExecuteReader())
-                                    {
-                                        if (!readPending.HasRows)
-                                        {
-                                            throw new DatabaseException("What on earth just happened. this shouldn't EVER happen. line 205 just for reference, you twig.");
-                                        }
-                                        else
-                                        {
-                                            response = new JoinGameResponse
-                                            {
-                                                GameID = readPending.GetString(0),
-                                                IsPending = true
-                                            };
-                                        }
-                                    }
-                                }
-                            }
-                            else
+                        reader.Read();
+                        // If the reader doesn't have any rows, we need to create a pending game.
+                        if (!reader.HasRows)
+                        {
+                            // Close the reader so we can do another SQL Query.
+                            reader.Close();
+                            using (SqlCommand startPending =
+                                new SqlCommand("INSERT INTO Games (Player1, TimeLimit) VALUES (@Player1, @TimeLimit)",
+                                conn,
+                                trans))
                             {
-                                string GameID = reader.GetString(0);
-                                int TimeLimit = reader.GetInt32(1);
-                                using (SqlCommand startGame =
-                                    new SqlCommand("UPDATE Games SET Player2 = @Player2, TimeLimit = @TimeLimit, Board = @Board, StartTime = @StartTime, GameStatus = @GameStatus WHERE GameID = @GameID",
-                                    conn,
-                                    trans))
+                                startPending.Parameters.AddWithValue("@Player1", join.UserToken);
+                                startPending.Parameters.AddWithValue("@TimeLimit", join.TimeLimit);
+                                if (startPending.ExecuteNonQuery() != 1)
                                 {
-                                    TimeLimit = (TimeLimit + join.TimeLimit) / 2;
-                                    startGame.Parameters.AddWithValue("@Player2", join.UserToken);
-                                    startGame.Parameters.AddWithValue("@TimeLimit", TimeLimit);
-                                    startGame.Parameters.AddWithValue("@Board", new BoggleBoard().ToString());
-                                    startGame.Parameters.AddWithValue("@StartTime", DateTime.Now);
-                                    startGame.Parameters.AddWithValue("@GameStatus", "active");
-                                    if (startGame.ExecuteNonQuery() != 1)
+                                    throw new DatabaseException("Start pending game has failed unexpectedly");
+                                }
+
+                            }
+                            // Obtain the new generated GameID from the database.
+                            using (SqlCommand getPending = new SqlCommand("SELECT GameID from Games WHERE Player2 IS NULL", conn, trans))
+                            {
+                                using (SqlDataReader readPending = cmd.ExecuteReader())
+                                {
+                                    readPending.Read();
+                                    if (!readPending.HasRows)
                                     {
-                                        throw new DatabaseException("Failed to start game!");
+                                        throw new DatabaseException("What on earth just happened. this shouldn't EVER happen. line 205 just for reference, you twig.");
                                     }
-                                    response = new JoinGameResponse
+                                    else
                                     {
-                                        GameID = GameID,
-                                        IsPending = false
-                                    };
+                                        response = new JoinGameResponse
+                                        {
+                                            GameID = readPending.GetString(0),
+                                            IsPending = true
+                                        };
+                                    }
                                 }
                             }
                         }
+
+                        // If the reader has rows, a game is already pending, so add this player
+                        // to that game and start the game.
+                        else
+                        {
+                            string GameID = reader.GetString(0);
+                            int TimeLimit = reader.GetInt32(1);
+                            // Close the reader so we can do another SQL Query.
+                            reader.Close();
+                            using (SqlCommand startGame =
+                                new SqlCommand("UPDATE Games SET Player2 = @Player2, TimeLimit = @TimeLimit, Board = @Board, StartTime = @StartTime WHERE GameID = @GameID",
+                                conn,
+                                trans))
+                            {
+                                // The time limit is the average of the two player's desired time limits.
+                                TimeLimit = (TimeLimit + join.TimeLimit) / 2;
+                                // Sanitize all of the input.
+                                startGame.Parameters.AddWithValue("@Player2", join.UserToken);
+                                startGame.Parameters.AddWithValue("@TimeLimit", TimeLimit);
+                                startGame.Parameters.AddWithValue("@Board", new BoggleBoard().ToString());
+                                startGame.Parameters.AddWithValue("@StartTime", DateTime.Now);
+
+                                // Execute the query.
+                                if (startGame.ExecuteNonQuery() != 1)
+                                {
+                                    throw new DatabaseException("Failed to start game!");
+                                }
+                                response = new JoinGameResponse
+                                {
+                                    GameID = GameID,
+                                    IsPending = false
+                                };
+                            }
+                        }
+
                     }
+                    // Commit our transanction regardless of what path was taken.
                     trans.Commit();
                 }
             }
+            // Return the constructed response.
             return response;
         }
 
@@ -266,34 +289,43 @@ namespace BoggleService.Controllers
         [Route("BoggleService/games")]
         public void PutCancelJoin([FromBody]string UserToken)
         {
+            // Start the process for querying the SQL database.
             using (SqlConnection conn = new SqlConnection(DBConnection))
             {
                 conn.Open();
                 using (SqlTransaction trans = conn.BeginTransaction())
                 {
+                    // Check to see if they're a registered user.
                     using (SqlCommand checkValidUser = new SqlCommand("SELECT UserID from Users where UserID = @UserToken", conn, trans))
                     {
                         checkValidUser.Parameters.AddWithValue("@UserToken", UserToken);
                         using (SqlDataReader readResult = checkValidUser.ExecuteReader())
                         {
+                            readResult.Read();
                             if (!readResult.HasRows)
                             {
                                 throw new HttpResponseException(HttpStatusCode.Forbidden);
                             }
                         }
                     }
+
+                    // Check to see if the player is actually in a pending game.
                     using (SqlCommand checkPendingUser = new SqlCommand("SELECT GameID from Games WHERE Player2 IS NULL AND Player1 = @Player1", conn, trans))
                     {
                         checkPendingUser.Parameters.AddWithValue("@Player1", UserToken);
                         using (SqlDataReader readResult = checkPendingUser.ExecuteReader())
                         {
+                            readResult.Read();
                             if (!readResult.HasRows)
                             {
                                 throw new HttpResponseException(HttpStatusCode.Forbidden);
                             }
                         }
                     }
-                    using (SqlCommand cmd = new SqlCommand("DELETE FROM Games WHERE Player1 = @UserID", conn, trans))
+
+                    // Deletes the player from the pending game by deleting all rows where the player
+                    // is Player1 and there is no second player.
+                    using (SqlCommand cmd = new SqlCommand("DELETE FROM Games WHERE Player1 = @UserID AND Player2 IS NULL", conn, trans))
                     {
                         cmd.Parameters.AddWithValue("@UserID", UserToken);
                         if (cmd.ExecuteNonQuery() != 1)
@@ -327,8 +359,7 @@ namespace BoggleService.Controllers
             string UserToken = request.UserToken;
             string Word = request.Word.ToUpper();
             BoggleBoard currentBoard;
-            bool isAPlayer = false;
-            bool arePlayerOne = false;
+
             // Can't have a null word.
             if (Word == null)
             {
@@ -340,6 +371,7 @@ namespace BoggleService.Controllers
                 throw new HttpResponseException(HttpStatusCode.Forbidden);
             }
 
+            // Start the process for querying the SQL database.
             using (SqlConnection conn = new SqlConnection(DBConnection))
             {
                 conn.Open();
@@ -351,6 +383,7 @@ namespace BoggleService.Controllers
                         checkValidRegistration.Parameters.AddWithValue("@UserID", UserToken);
                         using (SqlDataReader readResult = checkValidRegistration.ExecuteReader())
                         {
+                            readResult.Read();
                             if (!readResult.HasRows)
                             {
                                 throw new HttpResponseException(HttpStatusCode.Forbidden);
@@ -358,90 +391,53 @@ namespace BoggleService.Controllers
                         }
                     }
 
-                    //Checks if the UserID is Player1 in a game that matches the GameID
-                    using (SqlCommand checkValidGameUserPlayer1 = new SqlCommand("SELECT GameID from Games where Player1 = @UserID", conn, trans))
+                    //Checks if the UserID is Player1 or Player2 in a game that matches the GameID and if the game is pending.
+                    using (SqlCommand checkUserInGame =
+                        new SqlCommand("SELECT Player1, Player2 from Games WHERE GameID = @GameID",
+                        conn,
+                        trans))
                     {
-                        checkValidGameUserPlayer1.Parameters.AddWithValue("@UserID", UserToken);
-                        using (SqlDataReader readResult = checkValidGameUserPlayer1.ExecuteReader())
+                        checkUserInGame.Parameters.AddWithValue("@UserID", UserToken);
+                        using (SqlDataReader readResult = checkUserInGame.ExecuteReader())
                         {
-                            if (!readResult.HasRows)
+                            while (readResult.Read())
                             {
-                            }
-                            else if (readResult.GetString(0).Equals(gameID))
-                            {
-                                isAPlayer = true;
-                                arePlayerOne = true;
-                            }
-                            else
-                            {
-                                throw new DatabaseException("Line 373.. User is player 1 but the gameID doesnt match.. twig alert? ");    //I dont think it should hit this.
-                            }
-                        }
-                    }
-
-                    //Checks if the UserID is Player2 in a game that matches the GameID
-                    using (SqlCommand checkValidGameUserPlayer2 = new SqlCommand("SELECT GameID from Games where Player2 = @UserID", conn, trans))
-                    {
-                        checkValidGameUserPlayer2.Parameters.AddWithValue("@UserID", UserToken);
-                        using (SqlDataReader readResult = checkValidGameUserPlayer2.ExecuteReader())
-                        {
-                            if (!readResult.HasRows)
-                            {
-                            }
-                            else if (readResult.GetString(0).Equals(gameID))
-                            {
-                                isAPlayer = true;
-                                arePlayerOne = false;
-                            }
-                            else
-                            {
-                                throw new DatabaseException("Line 394.. User is player 2 but the gameID doesnt match.. twig alert? ");    //I dont think it should hit this.
-                            }
-                        }
-                    }
-
-                    if (!isAPlayer)
-                    {
-                        throw new HttpResponseException(HttpStatusCode.Forbidden);      //Not sure if this is neccessary. @Ryan can you double check. Theres gotta be a better way to do this
-                    }
-
-
-                    if (arePlayerOne)
-                    {
-                        //Gets the game status and checks if the user is in an active game
-                        using (SqlCommand checkValidActiveGameUser = new SqlCommand("SELECT GameStatus from Games where Player1 = @Player1", conn, trans))
-                        {
-                            checkValidActiveGameUser.Parameters.AddWithValue("@Player1", UserToken);
-                            using (SqlDataReader readResult = checkValidActiveGameUser.ExecuteReader())
-                            {
-                                // TODO: Remove extra if statement after testing.
+                                // If the reader doesn't have any rows, then the game ID isn't valid.
                                 if (!readResult.HasRows)
                                 {
-                                    throw new DatabaseException("It should never hit this since the last SQLCommand checked if the User was in a game. You messed up you twig.");
+                                    throw new HttpResponseException(HttpStatusCode.Forbidden);
                                 }
-                                else if (!readResult.GetString(0).Equals("active"))
+                                // If the user token isn't either player, they can't play a word.
+                                else if (!(readResult.GetString(0).Equals(UserToken) || readResult.GetString(1).Equals(UserToken)))
                                 {
-                                    throw new HttpResponseException(HttpStatusCode.Conflict);
+                                    throw new HttpResponseException(HttpStatusCode.Forbidden);
                                 }
                             }
+                            
                         }
                     }
-                    else
+
+                    // Check to see if the game is actually active, completed, or pending.
+                    using (SqlCommand getGameStatus = 
+                        new SqlCommand("SELECT StartTime, TimeLimit FROM Games WHERE GameID = @GameID AND Player2 IS NOT NULL", 
+                        conn,
+                        trans))
                     {
-                        //Gets the game status and checks if the user is in an active game
-                        using (SqlCommand checkValidActiveGameUser = new SqlCommand("SELECT GameStatus from Games where Player2 = @Player2", conn, trans))
+                        using (SqlDataReader readGameStatus = getGameStatus.ExecuteReader())
                         {
-                            checkValidActiveGameUser.Parameters.AddWithValue("@Player2", UserToken);
-                            using (SqlDataReader readResult = checkValidActiveGameUser.ExecuteReader())
+                            readGameStatus.Read();
+                            // If the reader doesn't have rows, the game is pending, as there isn't a
+                            // second player.
+                            if (!readGameStatus.HasRows)
                             {
-                                if (!readResult.HasRows)
-                                {
-                                    throw new DatabaseException("It should never hit this since the last SQLCommand checked if the User was in a game. You messed up you twig.");
-                                }
-                                else if (!readResult.GetString(0).Equals("active"))
-                                {
-                                    throw new HttpResponseException(HttpStatusCode.Conflict);
-                                }
+                                throw new HttpResponseException(HttpStatusCode.Conflict);
+                            }
+                            // If the time left is less than zero, the game is completed and no new
+                            // words can be played.
+                            int timeLeft = computeTimeLeft(readGameStatus.GetDateTime(0), readGameStatus.GetInt32(1));
+                            if (timeLeft < 0)
+                            {
+                                throw new HttpResponseException(HttpStatusCode.Conflict);
                             }
                         }
                     }
@@ -452,6 +448,7 @@ namespace BoggleService.Controllers
                         getGameBoard.Parameters.AddWithValue("@GameID", gameID);
                         using (SqlDataReader readResult = getGameBoard.ExecuteReader())
                         {
+                            readResult.Read();
                             if (!readResult.HasRows)
                             {
                                 throw new DatabaseException("It should never hit this since the last SQLCommand checked if the User was in a game. You messed up you twig.");
@@ -556,13 +553,11 @@ namespace BoggleService.Controllers
                         checkValidGameID.Parameters.AddWithValue("@GameID", gameID);
                         using (SqlDataReader reader = checkValidGameID.ExecuteReader())
                         {
+                            reader.Read();
+                            // If the reader doesn't have any rows, then the game ID is invalid.
                             if (!reader.HasRows)
                             {
                                 throw new HttpResponseException(HttpStatusCode.Forbidden);
-                            }
-                            else
-                            {
-                                gameStatus = reader.GetString(0);
                             }
                         }
                     }
@@ -577,6 +572,7 @@ namespace BoggleService.Controllers
                         using (SqlDataReader readPending = checkPending.ExecuteReader())
                         {
                             // Pending games don't have a second player.
+                            readPending.Read();
                             if (!readPending.HasRows)
                             {
                                 response.GameState = "pending";
@@ -596,6 +592,7 @@ namespace BoggleService.Controllers
                         getGameStatus.Parameters.AddWithValue("@GameID", gameID);
                         using (SqlDataReader readTiming = getGameStatus.ExecuteReader())
                         {
+                            readTiming.Read();
                             DateTime timeStarted = readTiming.GetDateTime(0);
                             int timeLimit = readTiming.GetInt32(1);
                             timeLeft = computeTimeLeft(timeStarted, timeLimit);
@@ -621,6 +618,7 @@ namespace BoggleService.Controllers
                             briefActiveResponse.Parameters.AddWithValue("@GameID", gameID);
                             using (SqlDataReader reader = briefActiveResponse.ExecuteReader())
                             {
+                                reader.Read();
                                 response.TimeLeft = computeTimeLeft(reader.GetDateTime(0), reader.GetInt32(1));
                                 playerOne = reader.GetString(2);
                                 playerTwo = reader.GetString(3);
@@ -645,6 +643,7 @@ namespace BoggleService.Controllers
                             completedBriefResponse.Parameters.AddWithValue("@GameID", gameID);
                             using (SqlDataReader readCompletedBrief = completedBriefResponse.ExecuteReader())
                             {
+                                readCompletedBrief.Read();
                                 playerOne = readCompletedBrief.GetString(0);
                                 playerTwo = readCompletedBrief.GetString(1);
                             }
@@ -665,6 +664,7 @@ namespace BoggleService.Controllers
                             activeGameInfo.Parameters.AddWithValue("@GameID", gameID);
                             using (SqlDataReader readGameInfo = activeGameInfo.ExecuteReader())
                             {
+                                readGameInfo.Read();
                                 response.Board = readGameInfo.GetString(0);
                                 response.TimeLimit = readGameInfo.GetInt32(1);
                                 response.TimeLeft = computeTimeLeft(readGameInfo.GetDateTime(2), response.TimeLimit);
@@ -692,6 +692,7 @@ namespace BoggleService.Controllers
                             completedGameInfo.Parameters.AddWithValue("@GameID", gameID);
                             using (SqlDataReader readCompletedGame = completedGameInfo.ExecuteReader())
                             {
+                                readCompletedGame.Read();
                                 response.Board = readCompletedGame.GetString(0);
                                 response.TimeLimit = readCompletedGame.GetInt32(1);
 
@@ -720,136 +721,11 @@ namespace BoggleService.Controllers
                                 }
                             }
                         }
-
-
-
-
-
-
-
-
                     }
+                    // Commit the transaction, regardless of what action was actually taken.
+                    trans.Commit();
                 }
             }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-            //Game currentGame;
-            //Game response;
-            //lock (sync)
-            //{
-            //    // If the game is pending, they will always get the same response.
-            //    // If the game is active and they want a brief response, do the following.
-            //    if (PendingGame.GameID != null && PendingGame.GameID.Equals(gameID))
-            //    {
-            //        response = new Game()
-            //        {
-            //            GameState = "pending"
-            //        };
-            //        return response;
-            //    }
-            //    // If the game isn't pending and isn't on our list, return a Forbidden code.
-            //    else if (!Games.TryGetValue(gameID, out currentGame))
-            //   
-            //        throw new HttpResponseException(HttpStatusCode.Forbidden);
-            //    }
-            //    // Determine the game state based on the amount of time left
-            //    if (ComputeTimeLeft(currentGame) <= 0)
-            //    {
-            //        currentGame.GameState = "completed";
-            //        currentGame.TimeLeft = 0;
-            //    }
-            //    // Now determine what our appropriate response should be.
-            //    if (currentGame.GameState.Equals("active") && brief)
-            //    {
-            //        // Copy over the state of the game.
-            //        response = new Game()
-            //        {
-            //            GameState = "active",
-            //            TimeLeft = ComputeTimeLeft(currentGame),
-            //            Player1 = DeepCopyUser(currentGame.Player1),
-            //            Player2 = DeepCopyUser(currentGame.Player2)
-            //        };
-
-
-            //        // Set all of the player info except for their score to null, so that it doesn't get serialized
-            //        response.Player1.Nickname = null;
-            //        response.Player1.WordsPlayed = null;
-
-            //        response.Player2.Nickname = null;
-            //        response.Player2.WordsPlayed = null;
-            //    }
-            //    // If the game is completed and they want a brief status, do the following.
-            //    else if (currentGame.GameState.Equals("completed") && brief)
-            //    {
-            //        // Copy over the state of the game.
-            //        response = new Game
-            //        {
-            //            GameState = "completed",
-            //            Player1 = DeepCopyUser(currentGame.Player1),
-            //            Player2 = DeepCopyUser(currentGame.Player2)
-
-            //        };
-
-            //        // Change all of the data in the response so when serialized it matches the brief response for a completed game.
-            //        response.Player1.Nickname = null;
-            //        response.Player1.WordsPlayed = null;
-
-            //        response.Player2.Nickname = null;
-            //        response.Player2.WordsPlayed = null;
-            //    }
-            //    // If the game is active and they want a complete response, do the following.
-            //    else if (currentGame.GameState.Equals("active"))
-            //    {
-            //        // Copy over the state of the current game, and deep copy the users.
-            //        response = new Game()
-            //        {
-            //            GameState = "active",
-            //            Board = currentGame.Board,
-            //            TimeLimit = currentGame.TimeLimit,
-            //            TimeLeft = ComputeTimeLeft(currentGame),
-            //            Player1 = DeepCopyUser(currentGame.Player1),
-            //            Player2 = DeepCopyUser(currentGame.Player2)
-            //        };
-
-            //        // For an active game, you don't want to serialize the words that the player
-            //        // played, so set them to null.
-            //        response.Player1.WordsPlayed = null;
-            //        response.Player2.WordsPlayed = null;
-
-            //    }
-            //    else
-            //    {
-            //        // Copy over the state of the game, and deep copy over the players.
-            //        response = new Game()
-            //        {
-            //            GameState = "completed",
-            //            Board = currentGame.Board,
-            //            TimeLimit = currentGame.TimeLimit,
-            //            TimeLeft = ComputeTimeLeft(currentGame),
-            //            Player1 = DeepCopyUser(currentGame.Player1),
-            //            Player2 = DeepCopyUser(currentGame.Player2)
-            //        };
-            //    }
-            //    return response;
-            //}
-
             return response;
         }
 
@@ -901,6 +777,7 @@ namespace BoggleService.Controllers
                 ObtainPlayerOneToken.Parameters.AddWithValue("@UserID", Player1ID);
                 using (SqlDataReader readNickname = ObtainPlayerOneToken.ExecuteReader())
                 {
+                    readNickname.Read();
                     response.Player1.Nickname = readNickname.GetString(0);
                 }
             }
@@ -910,6 +787,7 @@ namespace BoggleService.Controllers
                 ObtainPlayerOneToken.Parameters.AddWithValue("@UserID", Player2ID);
                 using (SqlDataReader readNickname = ObtainPlayerOneToken.ExecuteReader())
                 {
+                    readNickname.Read();
                     response.Player2.Nickname = readNickname.GetString(0);
                 }
             }

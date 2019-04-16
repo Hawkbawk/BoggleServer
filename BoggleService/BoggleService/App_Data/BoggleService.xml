@@ -582,15 +582,6 @@
             Contains the UserToken of the user playing the word and the word itself
             </param>
         </member>
-        <member name="M:BoggleService.Controllers.BoggleServiceController.DeterminePlayerNumber(BoggleService.Models.Game,System.String)">
-            <summary>
-            Determines if the player with the specified user token is the first player in the
-            specified game. Assumes that the player is one of the player's in the game in the first place.
-            </summary>
-            <param name="game">The game the player is in</param>
-            <param name="userToken">The player's user token</param>
-            <returns></returns>
-        </member>
         <member name="M:BoggleService.Controllers.BoggleServiceController.GetGameStatus(System.String,System.Boolean)">
             <summary>
             Get game status information. If gameID is invalid, responds with status 403 (Forbidden).
@@ -602,23 +593,6 @@
             <param name="gameID">The ID of the game whose status will be checked</param>
             <param name="brief">Determines whether or not they want the brief response</param>
             <returns></returns>
-        </member>
-        <member name="M:BoggleService.Controllers.BoggleServiceController.DeepCopyUser(BoggleService.Models.User)">
-            <summary>
-            Creates a deep copy of the passed in user.
-            </summary>
-            <param name="player">The user to be copied</param>
-            <returns>A deep copy of the passed in user</returns>
-        </member>
-        <member name="M:BoggleService.Controllers.BoggleServiceController.ComputeTimeLeft(BoggleService.Models.Game)">
-            <summary>
-            Computes the time left in a game by subtracting the current time of day from the sum of
-            the time limit for the game and when that game started.
-            </summary>
-            <param name="g">The game who's time limit will be checked</param>
-            <returns>
-            The amount of time left in the game. Negative values indicate the game is over.
-            </returns>
         </member>
         <member name="T:BoggleService.Models.DatabaseException">
             <summary>
@@ -641,11 +615,6 @@
             Represents the state of a BoggleGame.
             </summary>
         </member>
-        <member name="F:BoggleService.Models.Game.GameID">
-            <summary>
-            The ID of the game. Is never serialized.
-            </summary>
-        </member>
         <member name="F:BoggleService.Models.Game.GameState">
             <summary>
             The state of the game. Can be either "pending", "active", or "completed".
@@ -664,11 +633,6 @@
         <member name="F:BoggleService.Models.Game.TimeLeft">
             <summary>
             The amount of time left in the game.
-            </summary>
-        </member>
-        <member name="F:BoggleService.Models.Game.TimeStarted">
-            <summary>
-            The time that this game was started. Is never serialized.
             </summary>
         </member>
         <member name="F:BoggleService.Models.Game.Player1">
@@ -731,20 +695,9 @@
             Represents a user of the BoggleService.
             </summary>
         </member>
-        <member name="F:BoggleService.Models.User.UserToken">
-            <summary>
-            The unique user token that identifies this user. Is never serialized and is only used by
-            the server.
-            </summary>
-        </member>
         <member name="F:BoggleService.Models.User.Nickname">
             <summary>
             The nickname of this user, eg "Hawkbawk".
-            </summary>
-        </member>
-        <member name="F:BoggleService.Models.User.DesiredTimeLimit">
-            <summary>
-            The user's desired time limit for a game. Is never serialized and is only used by the server.
             </summary>
         </member>
         <member name="F:BoggleService.Models.User.Score">
