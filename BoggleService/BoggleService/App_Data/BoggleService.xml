@@ -594,6 +594,37 @@
             <param name="brief">Determines whether or not they want the brief response</param>
             <returns></returns>
         </member>
+        <member name="M:BoggleService.Controllers.BoggleServiceController.computeTimeLeft(System.DateTime,System.Int32)">
+            <summary>
+            Computes how much time is left for a game calculating the difference between when the
+            game should be completed (TimeStarted + TimeLimit) and the current time (DateTime.Now).
+            </summary>
+            <param name="timeStarted">The time the game was started</param>
+            <param name="timelimit">How long the game should last</param>
+            <returns></returns>
+        </member>
+        <member name="M:BoggleService.Controllers.BoggleServiceController.calculatePlayersScore(BoggleService.Models.Game,System.String,System.String,System.String,System.Data.SqlClient.SqlConnection,System.Data.SqlClient.SqlTransaction)">
+            <summary>
+            Calculates the score for each player in a game by summing up the score for each word that
+            each player played.
+            </summary>
+            <param name="response">The response that will go back to the client</param>
+            <param name="gameID">The ID of the game to be checked</param>
+            <param name="playerOne">The unique ID of the first player in the game</param>
+            <param name="playerTwo">The unique ID of the second player in the game</param>
+            <param name="conn">The SQL connection to the database that will be queried</param>
+            <param name="trans">The SQL transaction that this query will be a part of</param>
+        </member>
+        <member name="M:BoggleService.Controllers.BoggleServiceController.obtainUsername(BoggleService.Models.Game,System.String,System.String,System.Data.SqlClient.SqlConnection,System.Data.SqlClient.SqlTransaction)">
+            <summary>
+            Gets the usernames associated with the two passed in User ID's.
+            </summary>
+            <param name="response">The response back to the client</param>
+            <param name="Player1ID">The unique ID of the first player</param>
+            <param name="Player2ID">The unique ID of the second player</param>
+            <param name="conn">The SQL connection that this method will use to perform queries</param>
+            <param name="trans">The transaction that this method will use to perform SQL queries</param>
+        </member>
         <member name="T:BoggleService.Models.DatabaseException">
             <summary>
             
@@ -724,6 +755,13 @@
             <summary>
             
             </summary>
+        </member>
+        <member name="M:BoggleService.Models.WordAndScore.Equals(BoggleService.Models.WordAndScore)">
+            <summary>
+            
+            </summary>
+            <param name="other"></param>
+            <returns></returns>
         </member>
         <member name="T:Boggle.BoggleBoard">
             <summary>

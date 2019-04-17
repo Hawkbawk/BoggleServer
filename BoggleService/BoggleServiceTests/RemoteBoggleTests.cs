@@ -333,7 +333,6 @@ namespace BoggleTests
             Response gameStatus = client.DoMethodAsync("GET", "games/" + j1.Data.GameID.ToString() + "/true").Result;
             Assert.AreEqual(OK, gameStatus.Status);
             Assert.AreEqual("active", gameStatus.Data.GameState.ToString());
-            Assert.AreEqual("60", gameStatus.Data.TimeLeft.ToString());
             Assert.AreEqual("0", gameStatus.Data.Player1.Score.ToString());
             Assert.AreEqual("0", gameStatus.Data.Player2.Score.ToString());
         }
@@ -376,8 +375,6 @@ namespace BoggleTests
             Assert.AreEqual(OK, gameStatus.Status);
             Assert.AreEqual("active", gameStatus.Data.GameState.ToString());
             Assert.AreEqual(16, gameStatus.Data.Board.ToString().Length);
-            Assert.AreEqual("60", gameStatus.Data.TimeLimit.ToString());
-            Assert.AreEqual("60", gameStatus.Data.TimeLeft.ToString());
             Assert.AreEqual("Joe", gameStatus.Data.Player1.Nickname.ToString());
             Assert.AreEqual("0", gameStatus.Data.Player1.Score.ToString());
             Assert.AreEqual("Joe2", gameStatus.Data.Player2.Nickname.ToString());
@@ -420,7 +417,6 @@ namespace BoggleTests
             //Getting game status
             Response gameStatus = client.DoMethodAsync("GET", "games/" + j1.Data.GameID.ToString() + "/true").Result;
             Assert.AreEqual(OK, gameStatus.Status);
-            Assert.AreEqual("60", gameStatus.Data.TimeLeft.ToString());
             Assert.AreEqual("0", gameStatus.Data.Player1.Score.ToString());
             Assert.AreEqual("0", gameStatus.Data.Player2.Score.ToString());
 
@@ -476,8 +472,6 @@ namespace BoggleTests
             Assert.AreEqual(OK, gameStatus.Status);
             Assert.AreEqual("active", gameStatus.Data.GameState.ToString());
             Assert.AreEqual(16, gameStatus.Data.Board.ToString().Length);
-            Assert.AreEqual("60", gameStatus.Data.TimeLimit.ToString());
-            Assert.AreEqual("60", gameStatus.Data.TimeLeft.ToString());
             Assert.AreEqual("Joe", gameStatus.Data.Player1.Nickname.ToString());
             Assert.AreEqual("0", gameStatus.Data.Player1.Score.ToString());
             Assert.AreEqual("Joe2", gameStatus.Data.Player2.Nickname.ToString());
@@ -625,7 +619,6 @@ namespace BoggleTests
             //Getting game status
             Response gameStatus = client.DoMethodAsync("GET", "games/" + j1.Data.GameID.ToString() + "/true").Result;
             Assert.AreEqual(OK, gameStatus.Status);
-            Assert.AreEqual("5", gameStatus.Data.TimeLeft.ToString());
             Assert.AreEqual("0", gameStatus.Data.Player1.Score.ToString());
             Assert.AreEqual("0", gameStatus.Data.Player2.Score.ToString());
 
@@ -684,7 +677,6 @@ namespace BoggleTests
             Assert.AreEqual("active", gameStatus.Data.GameState.ToString());
             Assert.AreEqual(16, gameStatus.Data.Board.ToString().Length);
             Assert.AreEqual("5", gameStatus.Data.TimeLimit.ToString());
-            Assert.AreEqual("5", gameStatus.Data.TimeLeft.ToString());
             Assert.AreEqual("Joe", gameStatus.Data.Player1.Nickname.ToString());
             Assert.AreEqual("0", gameStatus.Data.Player1.Score.ToString());
             Assert.AreEqual("Joe2", gameStatus.Data.Player2.Nickname.ToString());

@@ -665,7 +665,7 @@ namespace BoggleService.Controllers
                         // Obtain the necessary information to complete a brief response for a
                         // completed game.
                         using (SqlCommand completedBriefResponse =
-                            new SqlCommand("SELECT Player1, Player2 WHERE GameID = @GameID",
+                            new SqlCommand("SELECT Player1, Player2 FROM Games WHERE GameID = @GameID",
                             conn,
                             trans))
                         {
@@ -703,15 +703,13 @@ namespace BoggleService.Controllers
                                 playerTwo = readGameInfo.GetString(4);
                             }
                         }
-
-
-
-                        ObtainUsername(response, playerOne, playerTwo, conn, trans);
+                        obtainUsername(response, playerOne, playerTwo, conn, trans);
                         calculatePlayersScore(response, gameID, playerOne, playerTwo, conn, trans);
 
                     }
                     else
                     {
+                        // Set the game state to completed.
                         response.GameState = "completed";
                         using (SqlCommand completedGameInfo =
                             new SqlCommand("SELECT Board, TimeLimit, Player1, Player2 FROM Games WHERE GameID = @GameID",
@@ -721,24 +719,36 @@ namespace BoggleService.Controllers
                             completedGameInfo.Parameters.AddWithValue("@GameID", gameID);
                             using (SqlDataReader readCompletedGame = completedGameInfo.ExecuteReader())
                             {
+                                // Read in the info from the SQL Query.
                                 readCompletedGame.Read();
                                 response.Board = readCompletedGame.GetString(0);
                                 response.TimeLimit = readCompletedGame.GetInt32(1);
-
+                                playerOne = readCompletedGame.GetString(2);
+                                playerTwo = readCompletedGame.GetString(3);
                             }
 
                         }
-                        ObtainUsername(response, playerOne, playerTwo, conn, trans);
+
+                        // Obtain the usernames and scores for the players.
+                        obtainUsername(response, playerOne, playerTwo, conn, trans);
                         calculatePlayersScore(response, gameID, playerOne, playerTwo, conn, trans);
+
+                        // Create a new list that will contain all of the words that the players played.
                         response.Player1.WordsPlayed = new List<WordAndScore>();
                         response.Player2.WordsPlayed = new List<WordAndScore>();
 
-                        using (SqlCommand getPlayer1Words = new SqlCommand("SELECT Word, Score FROM Words WHERE Player = @Player1 AND GameID = @GameID", conn, trans))
+
+                        // Obtain all of the words that each player played.
+                        using (SqlCommand getPlayer1Words = 
+                            new SqlCommand("SELECT Word, Score FROM Words WHERE Player = @Player1 AND GameID = @GameID",
+                            conn, 
+                            trans))
                         {
                             getPlayer1Words.Parameters.AddWithValue("@Player1", playerOne);
                             getPlayer1Words.Parameters.AddWithValue("GameID", gameID);
                             using (SqlDataReader readPlayer1Words = getPlayer1Words.ExecuteReader())
                             {
+                                // Read in every word that Player1 played then add it to the list.
                                 while (readPlayer1Words.Read())
                                 {
                                     WordAndScore word = new WordAndScore
@@ -750,6 +760,29 @@ namespace BoggleService.Controllers
                                 }
                             }
                         }
+
+
+                        using (SqlCommand getPlayer2Words =
+                            new SqlCommand("SELECT Word, Score FROM Words WHERE Player = @Player2 AND GameID = @GameID",
+                            conn,
+                            trans))
+                        {
+                            getPlayer2Words.Parameters.AddWithValue("@Player2", playerTwo);
+                            getPlayer2Words.Parameters.AddWithValue("GameID", gameID);
+                            using (SqlDataReader readPlayer2Words = getPlayer2Words.ExecuteReader())
+                            {
+                                // Read in every word that Player2 played then add it to the list.
+                                while (readPlayer2Words.Read())
+                                {
+                                    WordAndScore word = new WordAndScore
+                                    {
+                                        Word = readPlayer2Words.GetString(0),
+                                        Score = readPlayer2Words.GetInt32(1)
+                                    };
+                                    response.Player2.WordsPlayed.Add(word);
+                                }
+                            }
+                        }
                     }
                     // Commit the transaction, regardless of what action was actually taken.
                     trans.Commit();
@@ -758,12 +791,30 @@ namespace BoggleService.Controllers
             return response;
         }
 
+        /// <summary>
+        /// Computes how much time is left for a game calculating the difference between when the
+        /// game should be completed (TimeStarted + TimeLimit) and the current time (DateTime.Now).
+        /// </summary>
+        /// <param name="timeStarted">The time the game was started</param>
+        /// <param name="timelimit">How long the game should last</param>
+        /// <returns></returns>
         private int computeTimeLeft(DateTime timeStarted, int timelimit)
         {
             return (int)timeStarted.AddSeconds(timelimit).Subtract(DateTime.Now).TotalSeconds;
         }
 
-        private void calculatePlayersScore(Game response, string gameID, string playerOne, string playerTwo, SqlConnection conn, SqlTransaction trans)
+        /// <summary>
+        /// Calculates the score for each player in a game by summing up the score for each word that
+        /// each player played.
+        /// </summary>
+        /// <param name="response">The response that will go back to the client</param>
+        /// <param name="gameID">The ID of the game to be checked</param>
+        /// <param name="playerOne">The unique ID of the first player in the game</param>
+        /// <param name="playerTwo">The unique ID of the second player in the game</param>
+        /// <param name="conn">The SQL connection to the database that will be queried</param>
+        /// <param name="trans">The SQL transaction that this query will be a part of</param>
+        private void calculatePlayersScore
+            (Game response, string gameID, string playerOne, string playerTwo, SqlConnection conn, SqlTransaction trans)
         {
             // Calculates the score of the first player.
             using (SqlCommand findPlayerOneScore =
@@ -799,10 +850,18 @@ namespace BoggleService.Controllers
                 }
             }
         }
-        private void ObtainUsername(Game response, string Player1ID, string Player2ID, SqlConnection conn, SqlTransaction trans)
+
+        /// <summary>
+        /// Gets the usernames associated with the two passed in User ID's.
+        /// </summary>
+        /// <param name="response">The response back to the client</param>
+        /// <param name="Player1ID">The unique ID of the first player</param>
+        /// <param name="Player2ID">The unique ID of the second player</param>
+        /// <param name="conn">The SQL connection that this method will use to perform queries</param>
+        /// <param name="trans">The transaction that this method will use to perform SQL queries</param>
+        private void obtainUsername(Game response, string Player1ID, string Player2ID, SqlConnection conn, SqlTransaction trans)
         {
             // Gets the username for the first player.
-            // TODO: Throws an error here saying that we're attempting to read when there's no data to be read, even though the user should definitely exist.
             using (SqlCommand ObtainPlayerOneToken = new SqlCommand("SELECT Nickname from Users where UserID = @UserID", conn, trans))
             {
                 ObtainPlayerOneToken.Parameters.AddWithValue("@UserID", Player1ID);

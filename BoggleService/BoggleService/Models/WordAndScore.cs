@@ -12,14 +12,19 @@ namespace BoggleService.Models
         /// <summary>
         /// 
         /// </summary>
-        [DataMember(EmitDefaultValue = false)]
+        [DataMember]
         public string Word;
         /// <summary>
         /// 
         /// </summary>
-        [DataMember(EmitDefaultValue = false)]
+        [DataMember]
         public int Score;
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="other"></param>
+        /// <returns></returns>
         public bool Equals(WordAndScore other)
         {
             return other.Word.Equals(Word);
